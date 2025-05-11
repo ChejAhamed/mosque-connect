@@ -133,7 +133,7 @@ const DUMMY_EVENTS = [
 export default function EventsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   // Get today's date at the beginning of the day
   const today = new Date();
@@ -150,9 +150,9 @@ export default function EventsPage() {
       ? event.mosque.city.toLowerCase().includes(locationFilter.toLowerCase())
       : true;
 
-    const matchesCategory = categoryFilter
-      ? event.category === categoryFilter
-      : true;
+    const matchesCategory = categoryFilter === "all" || !categoryFilter
+      ? true
+      : event.category === categoryFilter;
 
     // Only include events that are today or in the future
     const eventDate = new Date(event.startDate);
@@ -200,7 +200,7 @@ export default function EventsPage() {
               <SelectValue placeholder="Event category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Categories</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
               {EVENT_CATEGORIES.map((category) => (
                 <SelectItem key={category} value={category}>
                   {category.charAt(0).toUpperCase() + category.slice(1)}
