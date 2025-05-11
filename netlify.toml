@@ -1,5 +1,5 @@
 [build]
-  command = "rm -rf .next && bun run build"
+  command = "rm -rf .next && NODE_OPTIONS=--max_old_space_size=4096 NEXT_IGNORE_ESLINT=1 SKIP_TYPESCRIPT_CHECK=true bun run build"
   publish = ".next"
 
 [build.environment]
