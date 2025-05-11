@@ -31,11 +31,23 @@ const nextConfig = {
     ],
   },
   typescript: {
+    // !! WARN !!
+    // Dangerously allow production builds to successfully complete even if
+    // your project has type errors.
+    // !! WARN !!
     ignoreBuildErrors: true,
   },
   eslint: {
+    // Warning: This allows production builds to successfully complete even if
+    // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  // Completely disable webpack telemetry data collection
+  telemetry: {
+    telemetryDisabled: true
+  },
+  // Force specific output to make the build more stable
+  output: 'standalone',
 };
 
 module.exports = nextConfig;
