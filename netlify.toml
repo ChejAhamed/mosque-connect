@@ -1,8 +1,5 @@
-[images]
-  remote_images = ["https://source.unsplash.com/.*", "https://images.unsplash.com/.*", "https://ext.same-assets.com/.*", "https://ugc.same-assets.com/.*"]
-
 [build]
-  command = "SKIP_TYPESCRIPT_CHECK=true bun run build"
+  command = "bun run build"
   publish = ".next"
 
 [build.environment]
@@ -13,9 +10,8 @@
   GOOGLE_MAPS_API_KEY = "your-google-maps-api-key"
   NEXTAUTH_SECRET = "your-next-auth-secret"
 
-[dev]
-  command = "bun run dev"
-  port = 3000
-
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+[images]
+  remote_images = ["https://source.unsplash.com/.*", "https://images.unsplash.com/.*", "https://ext.same-assets.com/.*", "https://ugc.same-assets.com/.*"]
