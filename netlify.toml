@@ -8,7 +8,7 @@
   SKIP_TYPESCRIPT_CHECK = "true"
   NEXTJS_IGNORE_TYPECHECK = "true"
   NEXT_IGNORE_ESLINT = "1"
-  DATABASE_URI = "mongodb+srv://username:password@cluster0.mongodb.net/mosque-connect?retryWrites=true&w=majority"
+  DATABASE_URI = "mongodb+srv://rasd:Saif13saif@rasd2022.z69cu.mongodb.net/ummah"
   GOOGLE_MAPS_API_KEY = "your-google-maps-api-key"
   NEXTAUTH_SECRET = "your-next-auth-secret"
 

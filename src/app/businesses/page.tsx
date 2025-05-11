@@ -15,7 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BUSINESS_TYPES } from "@/lib/constants";
 
 // Dummy business data for the MVP
-const DUMMY_BUSINESSES = [
+export const DUMMY_BUSINESSES = [
   {
     id: "1",
     name: "Halal Kitchen",
