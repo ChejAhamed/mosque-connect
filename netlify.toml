@@ -1,10 +1,9 @@
 [build]
-  command = "rm -rf .next && NODE_OPTIONS=--max_old_space_size=4096 bun run netlify-build"
-  publish = ".next"
+  command = "NODE_OPTIONS=--max_old_space_size=4096 bun run static-build"
+  publish = "out"
 
 [build.environment]
   NODE_VERSION = "18"
-  NEXT_USE_NETLIFY_EDGE = "true"
   SKIP_TYPESCRIPT_CHECK = "true"
   NEXTJS_IGNORE_TYPECHECK = "true"
   NEXT_IGNORE_ESLINT = "1"

@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',  // Set to 'export' for static site generation
+  distDir: 'out',    // Output directory for the static export
   images: {
     domains: [
       "source.unsplash.com",
@@ -29,6 +31,7 @@ const nextConfig = {
         pathname: "/**",
       },
     ],
+    unoptimized: true, // Required for static export
   },
   typescript: {
     // !! WARN !!
@@ -46,8 +49,6 @@ const nextConfig = {
   telemetry: {
     telemetryDisabled: true
   },
-  // Force specific output to make the build more stable
-  output: 'standalone',
 };
 
 module.exports = nextConfig;
