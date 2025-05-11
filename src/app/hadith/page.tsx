@@ -130,9 +130,9 @@ const DUMMY_HADITHS = [
 
 export default function HadithPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [narratorFilter, setNarratorFilter] = useState("");
-  const [themeFilter, setThemeFilter] = useState("");
-  const [authenticityFilter, setAuthenticityFilter] = useState("");
+  const [narratorFilter, setNarratorFilter] = useState("all");
+  const [themeFilter, setThemeFilter] = useState("all");
+  const [authenticityFilter, setAuthenticityFilter] = useState("all");
 
   // Extract unique narrators from the hadiths for filter options
   const narrators = [...new Set(DUMMY_HADITHS.map((hadith) => hadith.narrator))];
@@ -151,17 +151,17 @@ export default function HadithPage() {
         hadith.explanation.toLowerCase().includes(searchTerm.toLowerCase())
       : true;
 
-    const matchesNarrator = narratorFilter
-      ? hadith.narrator === narratorFilter
-      : true;
+    const matchesNarrator = narratorFilter === "all"
+      ? true
+      : hadith.narrator === narratorFilter;
 
-    const matchesTheme = themeFilter
-      ? hadith.themes.includes(themeFilter)
-      : true;
+    const matchesTheme = themeFilter === "all"
+      ? true
+      : hadith.themes.includes(themeFilter);
 
-    const matchesAuthenticity = authenticityFilter
-      ? hadith.authenticity === authenticityFilter
-      : true;
+    const matchesAuthenticity = authenticityFilter === "all"
+      ? true
+      : hadith.authenticity === authenticityFilter;
 
     return matchesSearch && matchesNarrator && matchesTheme && matchesAuthenticity;
   });
@@ -193,7 +193,7 @@ export default function HadithPage() {
               <SelectValue placeholder="Filter by narrator" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Narrators</SelectItem>
+              <SelectItem value="all">All Narrators</SelectItem>
               {narrators.map((narrator) => (
                 <SelectItem key={narrator} value={narrator}>
                   {narrator}
@@ -211,7 +211,7 @@ export default function HadithPage() {
               <SelectValue placeholder="Filter by theme" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Themes</SelectItem>
+              <SelectItem value="all">All Themes</SelectItem>
               {themes.map((theme) => (
                 <SelectItem key={theme} value={theme}>
                   {theme}
@@ -229,7 +229,7 @@ export default function HadithPage() {
               <SelectValue placeholder="Filter by authenticity" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All</SelectItem>
+              <SelectItem value="all">All</SelectItem>
               {authenticityLevels.map((level) => (
                 <SelectItem key={level} value={level}>
                   {level}

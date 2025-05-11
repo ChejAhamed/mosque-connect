@@ -111,13 +111,15 @@ const SelectLabel = React.forwardRef<
 ))
 SelectLabel.displayName = SelectPrimitive.Label.displayName
 
-// Modified to prevent empty string values
+// Modified to prevent empty string values with enhanced safety checks
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
 >(({ className, children, value = "default", ...props }, ref) => {
-  // Force the value to be "default" if it's an empty string
-  const safeValue = value === "" ? "default" : value;
+  // Extra safety: Force the value to be "default" if it's empty or just whitespace
+  const safeValue = value === "" || (typeof value === 'string' && value.trim() === "")
+    ? "default"
+    : value;
 
   return (
     <SelectPrimitive.Item
