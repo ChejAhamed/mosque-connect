@@ -1,0 +1,18 @@
+[images]
+  remote_images = ["https://source.unsplash.com/.*", "https://images.unsplash.com/.*", "https://ext.same-assets.com/.*", "https://ugc.same-assets.com/.*"]
+
+[build]
+  command = "SKIP_TYPESCRIPT_CHECK=true bun run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "18"
+  NEXT_USE_NETLIFY_EDGE = "true"
+  SKIP_TYPESCRIPT_CHECK = "true"
+
+[dev]
+  command = "bun run dev"
+  port = 3000
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
