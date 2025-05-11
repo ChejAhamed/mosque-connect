@@ -1,5 +1,5 @@
 [build]
-  command = "bun run build"
+  command = "rm -rf .next && bun run build"
   publish = ".next"
 
 [build.environment]
