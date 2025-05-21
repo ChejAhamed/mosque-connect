@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export',  // Set to 'export' for static site generation
+  distDir: 'out',    // Output directory for the static export
   images: {
     domains: [
       "source.unsplash.com",
@@ -29,6 +31,7 @@ const nextConfig = {
         pathname: "/**",
       },
     ],
+    unoptimized: true, // Required for static export
   },
   typescript: {
     // !! WARN !!
@@ -41,6 +44,10 @@ const nextConfig = {
     // Warning: This allows production builds to successfully complete even if
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
+  },
+  // Completely disable webpack telemetry data collection
+  telemetry: {
+    telemetryDisabled: true
   },
 };
 
