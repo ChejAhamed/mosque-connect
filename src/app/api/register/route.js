@@ -5,8 +5,6 @@ import { hash } from 'bcryptjs';
 import { z } from 'zod';
 
 // For static export compatibility
-export const dynamic = 'force-static';
-export const revalidate = 3600; // Revalidate every hour
 
 // User registration schema
 const userSchema = z.object({

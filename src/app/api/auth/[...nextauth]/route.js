@@ -1,10 +1,7 @@
 import NextAuth from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-// For static export compatibility
-export const dynamic = 'force-static';
-export const revalidate = 3600; // Revalidate every hour
-
+// NextAuth needs to run on the server, so we don't use static export config
 const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };

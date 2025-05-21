@@ -9,14 +9,15 @@ export async function connectToDatabase() {
   }
 
   // Use MongoDB connection string from environment variables
-  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mosque-connect';
+  // Check for both DATABASE_URI (primary) and MONGODB_URI (fallback) for compatibility
+  const dbUri = process.env.DATABASE_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/mosque-connect';
 
-  if (!MONGODB_URI) {
-    throw new Error('Please define the MONGODB_URI environment variable');
+  if (!dbUri) {
+    throw new Error('Please define the DATABASE_URI environment variable');
   }
 
   try {
-    const conn = await mongoose.connect(MONGODB_URI);
+    const conn = await mongoose.connect(dbUri);
     cachedDb = conn.connection;
 
     // Handle connection events

@@ -4,8 +4,6 @@ import { join } from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
 
 // For static export compatibility
-export const dynamic = 'force-static';
-export const revalidate = 3600; // Revalidate every hour
 
 export async function POST(request) {
   try {

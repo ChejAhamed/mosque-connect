@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 
 // For static export compatibility
-export const dynamic = 'force-static';
-export const revalidate = 3600; // Revalidate every hour
 
 // Prayer times API endpoint
 export async function GET(request) {

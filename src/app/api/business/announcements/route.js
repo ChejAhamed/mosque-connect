@@ -4,8 +4,6 @@ import { authOptions } from '@/lib/mocks'; // Changed to use mocks for static ex
 import { connectToDB } from '@/lib/mocks'; // Changed to use mocks for static export
 
 // For static export compatibility
-export const dynamic = 'force-static';
-export const revalidate = 3600; // Revalidate every hour
 import Business from '@/models/Business';
 import mongoose from 'mongoose';
 import { isBusiness } from '@/lib/auth-utils';

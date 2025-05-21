@@ -3,10 +3,6 @@ import { connectToDatabase } from '@/lib/db';
 import { Mosque } from '@/models/Mosque';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-
-// For static export compatibility
-export const dynamic = 'force-static';
-export const revalidate = 3600; // Revalidate every hour
 import { z } from 'zod';
 
 // Validation schema for creating a mosque

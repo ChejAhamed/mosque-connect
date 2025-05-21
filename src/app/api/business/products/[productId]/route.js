@@ -4,8 +4,6 @@ import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/db';
 
 // For static export compatibility
-export const dynamic = 'force-static';
-export const revalidate = 3600; // Revalidate every hour
 import BusinessModel from '@/models/Business';
 import UserModel from '@/models/User';
 import { z } from 'zod';
