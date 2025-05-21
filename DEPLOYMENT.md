@@ -21,14 +21,16 @@ Use the following settings in the Netlify UI:
 ### Step 3: Add Environment Variables
 Add the following environment variables in the Netlify site dashboard under Site settings > Environment variables:
 
-| Variable | Value |
+| Variable | Description |
 |----------|-------------|
-| `DATABASE_URI` | `mongodb+srv://rasd:Saif13saif@rasd2022.z69cu.mongodb.net/ummah` |
-| `NEXTAUTH_SECRET` | `BN5HEdDod78pAFeOZD3P5fOx+GiVRaEO6fleXIMatXT65ngkAftFIRoVa04=` |
-| `NEXTAUTH_URL` | `https://muslimconnect.netlify.app` |
-| `GOOGLE_MAPS_API_KEY` | `AIzaSyAodvbSqTiEDGD4Xgj7wAVOxI1jqkD0-Ik` |
-| `SKIP_TYPESCRIPT_CHECK` | `true` |
-| `NEXT_IGNORE_ESLINT` | `1` |
+| `DATABASE_URI` | MongoDB connection string |
+| `NEXTAUTH_SECRET` | Secret key for NextAuth.js authentication |
+| `NEXTAUTH_URL` | Your Netlify site URL (e.g., https://muslimconnect.netlify.app) |
+| `GOOGLE_MAPS_API_KEY` | Google Maps API key |
+| `SKIP_TYPESCRIPT_CHECK` | Set to "true" |
+| `NEXT_IGNORE_ESLINT` | Set to "1" |
+
+**Important Security Note:** Never commit actual values of environment variables to your repository. The values should be set only in the Netlify dashboard or in local .env files that are not committed.
 
 ### Step 4: Deploy
 Click the "Deploy site" button to start the deployment process.

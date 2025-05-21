@@ -13,14 +13,12 @@
 ### Deployment Improvements
 - Configured application for Netlify deployment
 - Updated netlify.toml with proper build settings
-- Added environment variables for the production environment
+- Added .env.production with environment variables for production
 - Created comprehensive deployment documentation in DEPLOYMENT.md
 
 ### Environment Variables
-- DATABASE_URI: mongodb+srv://rasd:Saif13saif@rasd2022.z69cu.mongodb.net/ummah
-- GOOGLE_MAPS_API_KEY: AIzaSyAodvbSqTiEDGD4Xgj7wAVOxI1jqkD0-Ik
-- NEXTAUTH_SECRET: BN5HEdDod78pAFeOZD3P5fOx+GiVRaEO6fleXIMatXT65ngkAftFIRoVa04=
-- NEXTAUTH_URL: https://muslimconnect.netlify.app
+- Environment variables have been configured in the Netlify dashboard and .env.production file
+- See DEPLOYMENT.md for a list of required environment variables (do not expose actual values in repository)
 
 ### Technical Details
 - Files modified:
