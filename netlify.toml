@@ -1,0 +1,16 @@
+[build]
+  command = "bun run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "18"
+  SKIP_TYPESCRIPT_CHECK = "true"
+  NEXTJS_IGNORE_TYPECHECK = "true"
+  NEXT_IGNORE_ESLINT = "1"
+  # Environment variables will be set in the Netlify dashboard
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[images]
+  remote_images = ["https://source.unsplash.com/.*", "https://images.unsplash.com/.*", "https://ext.same-assets.com/.*", "https://ugc.same-assets.com/.*"]
