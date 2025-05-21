@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',  // Set to 'export' for static site generation
-  distDir: 'out',    // Output directory for the static export
-  trailingSlash: true, // This can help with static exports
   images: {
     domains: [
       "source.unsplash.com",
@@ -32,7 +29,6 @@ const nextConfig = {
         pathname: "/**",
       },
     ],
-    unoptimized: true, // Required for static export
   },
   typescript: {
     // !! WARN !!

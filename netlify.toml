@@ -1,15 +1,13 @@
 [build]
-  command = "NODE_OPTIONS=--max_old_space_size=4096 bun run static-build"
-  publish = "out"
+  command = "bun run build"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "18"
   SKIP_TYPESCRIPT_CHECK = "true"
   NEXTJS_IGNORE_TYPECHECK = "true"
   NEXT_IGNORE_ESLINT = "1"
-  # Note: Sensitive environment variables like DATABASE_URI, NEXTAUTH_SECRET, etc.
-  # should be set in the Netlify dashboard's Environment variables section
-  # and not directly in this file for security reasons
+  # Environment variables will be set in the Netlify dashboard
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

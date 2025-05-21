@@ -4,9 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
-    "build": "NEXT_IGNORE_ESLINT=1 NEXTJS_IGNORE_TYPECHECK=1 next build",
-    "netlify-build": "NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NEXT_IGNORE_ESLINT=1 NEXTJS_IGNORE_TYPECHECK=1 SKIP_TYPESCRIPT_CHECK=true next build",
-    "static-build": "rm -rf out && NEXT_DISABLE_WARNINGS=1 NEXT_PRIVATE_STANDALONE=1 NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NEXT_IGNORE_ESLINT=1 NEXTJS_IGNORE_TYPECHECK=1 SKIP_TYPESCRIPT_CHECK=true next build",
+    "build": "next build",
+    "netlify-build": "next build",
     "start": "next start",
     "lint": "bunx biome lint --write && bunx tsc --noEmit",
     "format": "bunx biome format --write"

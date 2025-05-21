@@ -1,0 +1,16 @@
+{
+  "buildCommand": "next build",
+  "installCommand": "bun install",
+  "framework": "nextjs",
+  "outputDirectory": ".next",
+  "regions": ["iad1"],
+  "ignoreCommand": "node -e \"process.exit(!process.env.SKIP_TYPESCRIPT_CHECK)\"",
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1",
+    "SKIP_TYPESCRIPT_CHECK": "true",
+    "NEXT_IGNORE_ESLINT": "1"
+  },
+  "github": {
+    "silent": true
+  }
+}
