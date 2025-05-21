@@ -1,14 +1,15 @@
 # MosqueConnect: Vercel Deployment Guide
 
-This guide helps troubleshoot and fix deployment issues with MosqueConnect on Vercel, focusing on common problems with NextAuth, MongoDB connections, and API routes.
+This guide helps troubleshoot and fix deployment issues with MosqueConnect on Vercel, focusing on common problems with NextAuth, MongoDB connections, API routes, and JavaScript syntax errors.
 
 ## Current Issues
 
 If you're seeing these symptoms:
 - Vercel login page redirects (instead of your site)
 - API 500 errors in browser console
-- NextAuth "Unexpected token '<', \<!DOCTYPE \"... is not valid JSON" errors
+- NextAuth "Unexpected token '<', <!DOCTYPE \"... is not valid JSON" errors
 - MongoDB connection failures
+- JavaScript syntax errors in bundled files
 
 ## Step 1: Reset Your Deployment
 
@@ -33,7 +34,8 @@ In the project configuration screen, add these environment variables **exactly**
 | `SKIP_TYPESCRIPT_CHECK` | `true` |
 | `NEXT_IGNORE_ESLINT` | `true` |
 
-**❗ Important:** For `NEXTAUTH_URL`, use your actual Vercel deployment URL (not localhost)
+**❗ Important:** For `NEXTAUTH_URL`, use your actual Vercel deployment URL (not localhost).
+For example: `https://mosque-connect-okkg-1npkc8ckf-chejahameds-projects.vercel.app`
 
 ## Step 3: Deploy Settings
 
@@ -63,20 +65,24 @@ After deployment completes:
 
 ## Troubleshooting Common Issues
 
+### If NextAuth shows "Unexpected token '<'" errors:
+- This usually means the API is returning HTML instead of JSON
+- Make sure your NEXTAUTH_URL environment variable exactly matches your Vercel deployment URL
+- Check that your code doesn't have any syntax errors
+- Ensure your API routes don't have `export const dynamic = "force-static"` lines
+
+### If JavaScript syntax errors appear:
+- Look for missing parentheses or curly braces in React components
+- Check component rendering in layout files
+- Our latest commit fixed several syntax issues in UI components
+
 ### If APIs return 500 errors:
 - Check MongoDB connection string in environment variables
 - Verify database user credentials
 - Enable MongoDB network access to allow Vercel IPs
 
-### If NextAuth errors occur:
-- Make sure `NEXTAUTH_URL` is set correctly
-- Check that `NEXTAUTH_SECRET` is properly formatted
-- Ensure your API routes don't have `export const dynamic = "force-static"` lines
-
-### If deployment shows Vercel login page:
-- Your authentication might be failing at a project level
-- Try a complete redeployment with fresh GitHub import
-- Check the Vercel team settings to make sure your account has access
+### If favicon.ico 404 errors appear:
+- We've added a favicon.ico to the public directory in the latest commit
 
 ## Testing Your APIs
 

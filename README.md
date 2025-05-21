@@ -30,8 +30,8 @@ MosqueConnect is a comprehensive platform designed to connect Muslims with their
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/mosque-connect.git
-   cd mosque-connect
+   git clone https://github.com/ChejAhamed/mosque-connect-v2.git
+   cd mosque-connect-v2
    ```
 
 2. Install dependencies:
@@ -60,12 +60,20 @@ MosqueConnect is a comprehensive platform designed to connect Muslims with their
 
 ### Option 1: Vercel (Recommended)
 
-Vercel is the easiest way to deploy Next.js applications.
+The easiest way to deploy this Next.js application is with Vercel:
 
 1. Push your repository to GitHub
 2. Import your project to Vercel
-3. Set environment variables in the Vercel dashboard
+3. Set environment variables in the Vercel dashboard:
+   - `DATABASE_URI`: MongoDB connection string
+   - `NEXTAUTH_SECRET`: A strong random string for auth encryption
+   - `NEXTAUTH_URL`: Your Vercel deployment URL (e.g., https://your-app.vercel.app)
+   - `GOOGLE_MAPS_API_KEY`: Your Google Maps API key
+   - `SKIP_TYPESCRIPT_CHECK`: Set to "true"
+   - `NEXT_IGNORE_ESLINT`: Set to "true"
 4. Deploy!
+
+**For detailed Vercel deployment instructions**: See the [VERCEL_SETUP.md](VERCEL_SETUP.md) file.
 
 ### Option 2: Other Hosting Providers
 
@@ -83,13 +91,20 @@ See the [DEPLOYMENT.md](DEPLOYMENT.md) file for more detailed instructions.
 The application requires the following environment variables:
 
 - `DATABASE_URI`: MongoDB connection string
-- `NEXTAUTH_SECRET`: Secret for NextAuth.js authentication
+- `NEXTAUTH_SECRET`: Secret for NextAuth.js authentication (random string)
 - `NEXTAUTH_URL`: Full URL of your site (in production)
 - `GOOGLE_MAPS_API_KEY`: Google Maps API key (if using maps features)
 
 ## Recent Updates
 
-### v81-final: Select Component Fix
+### v82: NextAuth and JavaScript Fixes
+- Fixed syntax errors in UI components
+- Improved NextAuth error handling with better fallbacks
+- Enhanced CORS support for API routes
+- Added API health check endpoints
+- Fixed favicon 404 error
+
+### v81: Select Component Fix
 - Fixed an issue with Select components using empty string values
 - Updated all filter dropdowns to use "all" instead of empty strings
 - Enhanced the SelectItem component to prevent empty value errors
