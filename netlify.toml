@@ -1,0 +1,18 @@
+[build]
+  command = "npm run build-static-html"
+  publish = "public-static"
+
+[build.environment]
+  NODE_VERSION = "18"
+  SKIP_TYPESCRIPT_CHECK = "true"
+  NEXTJS_IGNORE_TYPECHECK = "true"
+  NEXT_IGNORE_ESLINT = "1"
+  # Note: Sensitive environment variables like DATABASE_URI, NEXTAUTH_SECRET, etc.
+  # should be set in the Netlify dashboard's Environment variables section
+  # and not directly in this file for security reasons
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[images]
+  remote_images = ["https://source.unsplash.com/.*", "https://images.unsplash.com/.*", "https://ext.same-assets.com/.*", "https://ugc.same-assets.com/.*"]
