@@ -1,0 +1,12 @@
+{
+  "name": "mosque-connect-static",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build-static-html": "mkdir -p public-static && cp -r public/* public-static/ && node scripts/generate-static-html.js"
+  },
+  "dependencies": {
+    "fs": "0.0.1-security",
+    "path": "^0.12.7"
+  }
+}
