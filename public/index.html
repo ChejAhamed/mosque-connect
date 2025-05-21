@@ -11,6 +11,10 @@
     .text-green-600 { color: #059669; }
     .bg-green-100 { background-color: #dcfce7; }
     .border-green-600 { border-color: #059669; }
+    .text-red-600 { color: #dc2626; }
+    .bg-red-50 { background-color: #fef2f2; }
+    .text-green-700 { color: #047857; }
+    .bg-green-50 { background-color: #f0fdf4; }
   </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -55,6 +59,39 @@
           <a href="#" class="px-6 py-3 rounded border border-green-600 text-green-600 font-medium">
             Find a Mosque
           </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bug Fix Notice -->
+    <section class="py-8 bg-green-50 border-t border-b border-green-100">
+      <div class="container mx-auto px-4">
+        <div class="bg-white p-6 rounded-lg shadow-md">
+          <h2 class="text-2xl font-bold text-green-700 mb-4">Select Component Fix - Version 80.2</h2>
+          <div class="flex flex-col md:flex-row gap-6">
+            <div class="md:w-1/2">
+              <h3 class="font-semibold text-lg mb-2">Previous Issue:</h3>
+              <div class="bg-red-50 p-4 rounded mb-4">
+                <p class="text-red-600 font-mono text-sm">Uncaught Error: A &lt;Select.Item /&gt; must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder.</p>
+              </div>
+              <p class="text-gray-700">The error occurred when SelectItem components were initialized with empty string values, which is not allowed by the Radix UI Select component. This caused runtime errors when filtering businesses and events.</p>
+            </div>
+            <div class="md:w-1/2">
+              <h3 class="font-semibold text-lg mb-2">Fix Applied:</h3>
+              <div class="bg-green-50 p-4 rounded mb-4">
+                <ul class="list-disc pl-5 text-green-700">
+                  <li>Changed empty string values to "all" for consistency</li>
+                  <li>Enhanced SelectItem component with error prevention</li>
+                  <li>Updated filter logic to handle "all" value correctly</li>
+                  <li>Added defensive coding to prevent future issues</li>
+                </ul>
+              </div>
+              <p class="text-gray-700">The fix applies to the business, events, and hadith pages, ensuring consistent and error-free filtering across the application.</p>
+            </div>
+          </div>
+          <div class="mt-6 pt-4 border-t border-gray-100">
+            <p class="text-gray-500 text-sm">This page serves as a deployment reference. Access the full application at your Netlify URL once deployment is complete.</p>
+          </div>
         </div>
       </div>
     </section>
