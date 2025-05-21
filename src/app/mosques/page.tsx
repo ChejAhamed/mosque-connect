@@ -37,19 +37,21 @@ export default function MosquesPage() {
     async function fetchMosques() {
       try {
         setLoading(true);
-        const response = await axios.get('/api/mosques');
-        setMosques(response.data.mosques);
-        setError("");
-      } catch (err) {
-        console.error("Error fetching mosques:", err);
-        setError("Failed to load mosques. Please try again later.");
-        toast({
-          title: "Error",
-          description: "Failed to load mosques. Please try again later.",
-          variant: "destructive",
-        });
-        // Use dummy data as fallback
-        setMosques(DUMMY_MOSQUES as unknown as Mosque[]);
+        try {
+          const response = await axios.get('/api/mosques');
+          setMosques(response.data.mosques);
+          setError("");
+        } catch (error: any) {
+          console.error('Failed to fetch mosque data:', error);
+          setError("Failed to load mosques. Please try again later.");
+          toast({
+            title: "Error",
+            description: error?.response?.data?.message || "Failed to load mosques. Please try again later.",
+            variant: "destructive",
+          });
+          // Use dummy data as fallback
+          setMosques(DUMMY_MOSQUES as unknown as Mosque[]);
+        }
       } finally {
         setLoading(false);
       }
