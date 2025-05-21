@@ -87,6 +87,16 @@ The application requires the following environment variables:
 - `NEXTAUTH_URL`: Full URL of your site (in production)
 - `GOOGLE_MAPS_API_KEY`: Google Maps API key (if using maps features)
 
+## Recent Updates
+
+### v81-final: Select Component Fix
+- Fixed an issue with Select components using empty string values
+- Updated all filter dropdowns to use "all" instead of empty strings
+- Enhanced the SelectItem component to prevent empty value errors
+- Added defensive coding to prevent future issues
+
+See the [CHANGELOG.md](./CHANGELOG.md) for more details about recent updates.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
