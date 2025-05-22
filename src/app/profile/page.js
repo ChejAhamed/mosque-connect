@@ -1,0 +1,510 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+
+// Helper function to get initials from a name
+const getInitials = (name) => {
+  if (!name) return "U";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+};
+
+export default function ProfilePage() {
+  const { data: session, status, update } = useSession();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState("profile");
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login?callbackUrl=/profile");
+    }
+  }, [status, router]);
+
+  // Function to change user role for testing
+  const changeRole = async (newRole) => {
+    if (!session || isUpdatingRole) return;
+
+    setIsUpdatingRole(true);
+    try {
+      // Update the session with a new role
+      await update({
+        ...session,
+        user: {
+          ...session.user,
+          role: newRole,
+        },
+      });
+
+      // Force refresh to show the new role
+      router.refresh();
+    } catch (error) {
+      console.error("Error changing role:", error);
+    } finally {
+      setIsUpdatingRole(false);
+    }
+  };
+
+  // Show loading state while session is loading
+  if (status === "loading") {
+    return (
+      <div className="container py-10">
+        <Card>
+          <CardHeader>
+            <div className="h-8 bg-gray-200 rounded animate-pulse w-1/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded animate-pulse w-2/3"></div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="h-20 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-32 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // If not authenticated, show a message (this should rarely happen because of the redirect)
+  if (!session) {
+    return (
+      <div className="container py-10">
+        <Alert className="bg-yellow-50 border border-yellow-200">
+          <AlertDescription>
+            You need to be logged in to view your profile.{" "}
+            <Link href="/login?callbackUrl=/profile" className="text-blue-600 hover:underline">
+              Login here
+            </Link>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const user = session.user;
+  const userRole = user?.role || "user";
+  const volunteerStatus = user?.volunteerStatus || "not_volunteer";
+
+  // Define role-specific navigation and content
+  const roleConfig = {
+    admin: {
+      title: "Admin Dashboard",
+      description: "Manage the entire platform",
+      dashboardUrl: "/admin/dashboard",
+      dashboardLabel: "Admin Dashboard",
+      tabs: ["profile", "settings", "admin"],
+      color: "purple",
+    },
+    imam: {
+      title: "Mosque Admin",
+      description: "Manage your mosque profile and updates",
+      dashboardUrl: "/dashboard/imam",
+      dashboardLabel: "Mosque Dashboard",
+      tabs: ["profile", "settings", "mosque"],
+      color: "blue",
+    },
+    business: {
+      title: "Business Owner",
+      description: "Manage your business profile, products, and announcements",
+      dashboardUrl: "/dashboard/business",
+      dashboardLabel: "Business Dashboard",
+      tabs: ["profile", "settings", "business"],
+      color: "green",
+    },
+    user: {
+      title: "Community Member",
+      description: "Your personal account",
+      dashboardUrl: "/dashboard",
+      dashboardLabel: "Dashboard",
+      tabs: ["profile", "settings"],
+      color: "gray",
+    },
+  };
+
+  // Use the configuration for the user's role or fall back to regular user config
+  const config = roleConfig[userRole] || roleConfig.user;
+
+  return (
+    <div className="container py-10">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl font-bold">{config.title}</CardTitle>
+              <CardDescription>{config.description}</CardDescription>
+            </div>
+            <div className="flex flex-col items-end space-y-2">
+              <Badge
+                className={`bg-${config.color}-100 text-${config.color}-700 border border-${config.color}-200 capitalize px-3 py-1`}
+              >
+                {userRole}
+              </Badge>
+
+              {/* Show volunteer badge if applicable */}
+              {userRole === "user" && volunteerStatus !== "not_volunteer" && (
+                <Badge
+                  className={`${
+                    volunteerStatus === "pending"
+                      ? "bg-yellow-100 text-yellow-700 border-yellow-200"
+                      : "bg-orange-100 text-orange-700 border-orange-200"
+                  } capitalize px-3 py-1`}
+                >
+                  {volunteerStatus === "pending" ? "Volunteer (Pending)" : "Volunteer"}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <Tabs defaultValue="profile" onValueChange={setActiveTab} value={activeTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+              {userRole !== "user" && (
+                <TabsTrigger value={userRole}>
+                  {userRole === "admin" ? "Admin" : userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+                </TabsTrigger>
+              )}
+            </TabsList>
+
+            <TabsContent value="profile" className="space-y-6">
+              <div className="flex items-center space-x-6">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src="" alt={user?.name || "User"} />
+                  <AvatarFallback className="text-2xl">{getInitials(user?.name)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h2 className="text-2xl font-bold">{user?.name || "User"}</h2>
+                  <p className="text-gray-500">{user?.email}</p>
+                  <p className="text-gray-500 capitalize">Role: {userRole}</p>
+
+                  {/* Show volunteer status if user */}
+                  {userRole === "user" && (
+                    <div className="mt-2">
+                      {volunteerStatus === "not_volunteer" ? (
+                        <Button size="sm" className="bg-orange-500 hover:bg-orange-600" asChild>
+                          <Link href="/volunteer/become">Become a Volunteer</Link>
+                        </Button>
+                      ) : volunteerStatus === "pending" ? (
+                        <p className="text-yellow-600 text-sm font-medium">
+                          Your volunteer application is pending approval
+                        </p>
+                      ) : (
+                        <p className="text-green-600 text-sm font-medium">
+                          You are an active volunteer
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Role Switcher for Testing */}
+              <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
+                <h3 className="text-lg font-medium mb-2">Role Switcher (Testing Only)</h3>
+                <p className="text-sm text-gray-500 mb-4">Switch between different roles to test functionality</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={userRole === "user" ? "default" : "outline"}
+                    onClick={() => changeRole("user")}
+                    disabled={isUpdatingRole}
+                  >
+                    User
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={userRole === "admin" ? "default" : "outline"}
+                    onClick={() => changeRole("admin")}
+                    disabled={isUpdatingRole}
+                    className="bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200"
+                  >
+                    Admin
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={userRole === "imam" ? "default" : "outline"}
+                    onClick={() => changeRole("imam")}
+                    disabled={isUpdatingRole}
+                    className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200"
+                  >
+                    Imam
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={userRole === "business" ? "default" : "outline"}
+                    onClick={() => changeRole("business")}
+                    disabled={isUpdatingRole}
+                    className="bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
+                  >
+                    Business
+                  </Button>
+                </div>
+                {isUpdatingRole && (
+                  <p className="text-sm text-blue-600 mt-2">Updating role...</p>
+                )}
+              </div>
+
+              {/* Volunteer Status Switcher for Testing */}
+              {userRole === "user" && (
+                <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
+                  <h3 className="text-lg font-medium mb-2">Volunteer Status (Testing Only)</h3>
+                  <p className="text-sm text-gray-500 mb-4">Change your volunteer status for testing</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant={volunteerStatus === "not_volunteer" ? "default" : "outline"}
+                      onClick={() => update({
+                        ...session,
+                        user: { ...user, volunteerStatus: "not_volunteer" }
+                      })}
+                      disabled={isUpdatingRole}
+                    >
+                      Not Volunteer
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={volunteerStatus === "pending" ? "default" : "outline"}
+                      onClick={() => update({
+                        ...session,
+                        user: { ...user, volunteerStatus: "pending" }
+                      })}
+                      disabled={isUpdatingRole}
+                      className="bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200"
+                    >
+                      Pending
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={volunteerStatus === "active" ? "default" : "outline"}
+                      onClick={() => update({
+                        ...session,
+                        user: { ...user, volunteerStatus: "active" }
+                      })}
+                      disabled={isUpdatingRole}
+                      className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200"
+                    >
+                      Active
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid md:grid-cols-2 gap-6 mt-8">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Personal Information</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="text-gray-500">Name</div>
+                    <div>{user?.name || "Not provided"}</div>
+                    <div className="text-gray-500">Email</div>
+                    <div>{user?.email}</div>
+                    <div className="text-gray-500">Member Since</div>
+                    <div>
+                      {new Date().toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Account Information</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="text-gray-500">User ID</div>
+                    <div className="truncate">{user?.id || "N/A"}</div>
+                    <div className="text-gray-500">Role</div>
+                    <div className="capitalize">{userRole}</div>
+                    <div className="text-gray-500">Status</div>
+                    <div className="text-green-600">Active</div>
+                    {userRole === "user" && (
+                      <>
+                        <div className="text-gray-500">Volunteer Status</div>
+                        <div className="capitalize">
+                          {volunteerStatus === "not_volunteer"
+                            ? "Not a volunteer"
+                            : volunteerStatus === "pending"
+                              ? "Pending approval"
+                              : "Active volunteer"}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="settings" className="space-y-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Account Settings</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-4 rounded border border-gray-200">
+                    <div>
+                      <h4 className="font-medium">Profile Information</h4>
+                      <p className="text-sm text-gray-500">Update your account information</p>
+                    </div>
+                    <Button variant="outline">Edit Profile</Button>
+                  </div>
+
+                  <div className="flex justify-between items-center p-4 rounded border border-gray-200">
+                    <div>
+                      <h4 className="font-medium">Password</h4>
+                      <p className="text-sm text-gray-500">Change your password</p>
+                    </div>
+                    <Button variant="outline">Change Password</Button>
+                  </div>
+
+                  <div className="flex justify-between items-center p-4 rounded border border-gray-200">
+                    <div>
+                      <h4 className="font-medium">Notification Preferences</h4>
+                      <p className="text-sm text-gray-500">Manage your notification settings</p>
+                    </div>
+                    <Button variant="outline">Update</Button>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Admin Tab Content */}
+            {userRole === "admin" && (
+              <TabsContent value="admin" className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Admin Controls</h3>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">User Management</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm text-gray-500">
+                        Manage users, roles, and permissions
+                      </CardContent>
+                      <CardFooter>
+                        <Button size="sm" variant="default" className="w-full">
+                          <Link href="/admin/dashboard">Go to User Management</Link>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Content Management</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm text-gray-500">
+                        Manage and moderate platform content
+                      </CardContent>
+                      <CardFooter>
+                        <Button size="sm" variant="default" className="w-full">
+                          <Link href="/admin/dashboard">Go to Content Management</Link>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  </div>
+                </div>
+              </TabsContent>
+            )}
+
+            {/* Imam Tab Content */}
+            {userRole === "imam" && (
+              <TabsContent value="imam" className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Mosque Administration</h3>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Mosque Profile</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm text-gray-500">
+                        Update your mosque information, prayer times, and services
+                      </CardContent>
+                      <CardFooter>
+                        <Button size="sm" variant="default" className="w-full">
+                          <Link href="/dashboard/imam">Manage Mosque</Link>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Community Events</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm text-gray-500">
+                        Create and manage mosque events and activities
+                      </CardContent>
+                      <CardFooter>
+                        <Button size="sm" variant="default" className="w-full">
+                          <Link href="/dashboard/imam">Manage Events</Link>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  </div>
+                </div>
+              </TabsContent>
+            )}
+
+            {/* Business Tab Content */}
+            {userRole === "business" && (
+              <TabsContent value="business" className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Business Management</h3>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Products</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm text-gray-500">
+                        Manage your product catalog
+                      </CardContent>
+                      <CardFooter>
+                        <Button size="sm" variant="default" className="w-full">
+                          <Link href="/dashboard/business/products">Manage Products</Link>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Announcements</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-sm text-gray-500">
+                        Create and manage business announcements
+                      </CardContent>
+                      <CardFooter>
+                        <Button size="sm" variant="default" className="w-full">
+                          <Link href="/dashboard/business/announcements">Manage Announcements</Link>
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  </div>
+                </div>
+              </TabsContent>
+            )}
+          </Tabs>
+        </CardContent>
+
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" onClick={() => router.back()}>
+            Back
+          </Button>
+          <Button>
+            <Link href={config.dashboardUrl}>{config.dashboardLabel}</Link>
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
