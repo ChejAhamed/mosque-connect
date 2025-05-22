@@ -23,9 +23,10 @@ const getInitials = (name) => {
 };
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("profile");
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -33,6 +34,30 @@ export default function ProfilePage() {
       router.push("/login?callbackUrl=/profile");
     }
   }, [status, router]);
+
+  // Function to change user role for testing
+  const changeRole = async (newRole) => {
+    if (!session || isUpdatingRole) return;
+
+    setIsUpdatingRole(true);
+    try {
+      // Update the session with a new role
+      await update({
+        ...session,
+        user: {
+          ...session.user,
+          role: newRole,
+        },
+      });
+
+      // Force refresh to show the new role
+      router.refresh();
+    } catch (error) {
+      console.error("Error changing role:", error);
+    } finally {
+      setIsUpdatingRole(false);
+    }
+  };
 
   // Show loading state while session is loading
   if (status === "loading") {
@@ -143,7 +168,9 @@ export default function ProfilePage() {
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
               {userRole !== "user" && (
-                <TabsTrigger value={userRole}>{userRole === "admin" ? "Admin" : userRole.charAt(0).toUpperCase() + userRole.slice(1)}</TabsTrigger>
+                <TabsTrigger value={userRole}>
+                  {userRole === "admin" ? "Admin" : userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+                </TabsTrigger>
               )}
             </TabsList>
 
@@ -158,6 +185,61 @@ export default function ProfilePage() {
                   <p className="text-gray-500">{user?.email}</p>
                   <p className="text-gray-500 capitalize">Role: {userRole}</p>
                 </div>
+              </div>
+
+              {/* Role Switcher for Testing */}
+              <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
+                <h3 className="text-lg font-medium mb-2">Role Switcher (Testing Only)</h3>
+                <p className="text-sm text-gray-500 mb-4">Switch between different roles to test functionality</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={userRole === "user" ? "default" : "outline"}
+                    onClick={() => changeRole("user")}
+                    disabled={isUpdatingRole}
+                  >
+                    User
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={userRole === "admin" ? "default" : "outline"}
+                    onClick={() => changeRole("admin")}
+                    disabled={isUpdatingRole}
+                    className="bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200"
+                  >
+                    Admin
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={userRole === "imam" ? "default" : "outline"}
+                    onClick={() => changeRole("imam")}
+                    disabled={isUpdatingRole}
+                    className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200"
+                  >
+                    Imam
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={userRole === "business" ? "default" : "outline"}
+                    onClick={() => changeRole("business")}
+                    disabled={isUpdatingRole}
+                    className="bg-green-100 text-green-700 border-green-200 hover:bg-green-200"
+                  >
+                    Business
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={userRole === "volunteer" ? "default" : "outline"}
+                    onClick={() => changeRole("volunteer")}
+                    disabled={isUpdatingRole}
+                    className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200"
+                  >
+                    Volunteer
+                  </Button>
+                </div>
+                {isUpdatingRole && (
+                  <p className="text-sm text-blue-600 mt-2">Updating role...</p>
+                )}
               </div>
 
               <div className="grid md:grid-cols-2 gap-6 mt-8">
