@@ -18,7 +18,7 @@ The fastest solution is to clear your current deployment and start fresh:
 1. Go to **Vercel Dashboard** → **MosqueConnect project** → **Settings** → **Advanced**
 2. Scroll down to "Delete Project" and click "Delete"
 3. Go to the [new project page](https://vercel.com/new)
-4. Re-import your GitHub repo, selecting the `vercel-dynamic-deployment` branch
+4. Re-import your GitHub repo, selecting the `fixes-v82` branch
 5. Configure project settings as shown below
 
 ## Step 2: Configure Environment Variables
@@ -46,6 +46,19 @@ Use these deployment settings:
 - **Install Command**: `bun install` (or `npm install` if you prefer)
 - **Framework Preset**: Next.js
 - **Node.js Version**: 18.x
+
+## Important Configuration Changes
+
+We've made the following critical changes to fix deployment issues:
+
+1. **Updated vercel.json**: Removed the `functions` and `rewrites` sections that were causing deployment errors with the App Router.
+   - If you previously had a `vercel.json` file with custom `functions` or `rewrites`, please remove or update it to only include necessary configuration.
+   - The recommended minimal `vercel.json` for MosqueConnect is either empty or omitted entirely, unless you have a specific use case.
+   - This change ensures that Vercel's App Router and API routes work as expected without interference.
+
+2. **Enhanced CORS Middleware**: Added comprehensive CORS support through middleware instead of relying on vercel.json functions.
+
+3. **Fixed API Routes**: Made sure all API routes are properly configured for App Router.
 
 ## Step 4: Verify MongoDB Access
 
