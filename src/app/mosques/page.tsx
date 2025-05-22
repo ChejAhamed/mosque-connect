@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ export default function MosquesPage() {
   const markersRef = useRef<any[]>([]);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
 
   // Filter the mosques based on search term and filters
   const filteredMosques = mosques.filter((mosque) => {
@@ -75,24 +76,36 @@ export default function MosquesPage() {
     return matchesSearch && matchesLocation && matchesFeature;
   });
 
-  // Initialize map
-  const initMap = () => {
-    if (!window.google || !mapContainerRef.current) return;
+  // Initialize map - make it a useCallback to avoid recreation
+  const initMap = useCallback(() => {
+    if (!window.google || !mapContainerRef.current || !scriptLoaded) return;
 
-    // Default center (can be anywhere in the UK)
-    const defaultCenter = { lat: 51.5074, lng: -0.1278 }; // London
+    // Prevent multiple initializations
+    if (mapRef.current) return;
 
-    // Create map
-    mapRef.current = new window.google.maps.Map(mapContainerRef.current, {
-      zoom: 10,
-      center: defaultCenter,
-      mapTypeControl: true,
-      streetViewControl: false,
-      fullscreenControl: true,
-    });
+    try {
+      // Default center (can be anywhere in the UK)
+      const defaultCenter = { lat: 51.5074, lng: -0.1278 }; // London
 
-    setMapLoaded(true);
-  };
+      // Create map
+      mapRef.current = new window.google.maps.Map(mapContainerRef.current, {
+        zoom: 10,
+        center: defaultCenter,
+        mapTypeControl: true,
+        streetViewControl: false,
+        fullscreenControl: true,
+      });
+
+      setMapLoaded(true);
+    } catch (error) {
+      console.error("Error initializing Google Maps:", error);
+    }
+  }, [scriptLoaded]);
+
+  // Handle script load
+  const handleScriptLoad = useCallback(() => {
+    setScriptLoaded(true);
+  }, []);
 
   // Update map markers when mosques change
   useEffect(() => {
@@ -118,62 +131,83 @@ export default function MosquesPage() {
         };
 
         // Create marker
-        const marker = new window.google.maps.Marker({
-          position,
-          map: mapRef.current,
-          title: mosque.name,
-          animation: window.google.maps.Animation.DROP
-        });
+        try {
+          const marker = new window.google.maps.Marker({
+            position,
+            map: mapRef.current,
+            title: mosque.name,
+            animation: window.google.maps.Animation.DROP
+          });
 
-        // Create info window
-        const infoWindow = new window.google.maps.InfoWindow({
-          content: `
-            <div style="max-width: 200px;">
-              <h3 style="margin: 0 0 5px; font-size: 16px;">${mosque.name}</h3>
-              <p style="margin: 0 0 5px; font-size: 12px;">${mosque.address}, ${mosque.city}</p>
-              <a href="/mosques/${mosque._id}" style="font-size: 12px; color: #1d4ed8;">View Details</a>
-            </div>
-          `
-        });
+          // Create info window
+          const infoWindow = new window.google.maps.InfoWindow({
+            content: `
+              <div style="max-width: 200px;">
+                <h3 style="margin: 0 0 5px; font-size: 16px;">${mosque.name}</h3>
+                <p style="margin: 0 0 5px; font-size: 12px;">${mosque.address}, ${mosque.city}</p>
+                <a href="/mosques/${mosque._id}" style="font-size: 12px; color: #1d4ed8;">View Details</a>
+              </div>
+            `
+          });
 
-        // Add click listener for info window
-        marker.addListener('click', () => {
-          infoWindow.open(mapRef.current, marker);
-        });
+          // Add click listener for info window
+          marker.addListener('click', () => {
+            infoWindow.open(mapRef.current, marker);
+          });
 
-        // Store marker for later cleanup
-        markersRef.current.push(marker);
+          // Store marker for later cleanup
+          markersRef.current.push(marker);
 
-        // Extend bounds to include this marker
-        bounds.extend(position);
-        markersAdded++;
+          // Extend bounds to include this marker
+          bounds.extend(position);
+          markersAdded++;
+        } catch (error) {
+          console.error("Error creating marker:", error);
+        }
       }
     });
 
     // Adjust map view to fit all markers if we have any
     if (markersAdded > 0) {
-      mapRef.current.fitBounds(bounds);
+      try {
+        mapRef.current.fitBounds(bounds);
 
-      // If only one marker, zoom out a bit
-      if (markersAdded === 1) {
-        window.google.maps.event.addListenerOnce(mapRef.current, 'bounds_changed', () => {
-          mapRef.current.setZoom(Math.min(14, mapRef.current.getZoom()));
-        });
+        // If only one marker, zoom out a bit
+        if (markersAdded === 1) {
+          window.google.maps.event.addListenerOnce(mapRef.current, 'bounds_changed', () => {
+            mapRef.current.setZoom(Math.min(14, mapRef.current.getZoom()));
+          });
+        }
+      } catch (error) {
+        console.error("Error adjusting map view:", error);
       }
     }
   }, [filteredMosques, mapLoaded]);
 
-  // Setup Google Maps when component mounts
+  // Setup Google Maps when script is loaded
   useEffect(() => {
-    // Define the initialization function for Google Maps
-    window.initMap = () => {
-      initMap();
-    };
-
-    // If Google Maps already loaded, initialize map directly
-    if (window.google && window.google.maps) {
-      initMap();
+    if (scriptLoaded) {
+      // Make sure we're in the browser
+      if (typeof window !== 'undefined') {
+        window.initMap = initMap;
+        initMap();
+      }
     }
+  }, [scriptLoaded, initMap]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup markers
+      if (markersRef.current) {
+        markersRef.current.forEach(marker => {
+          if (marker && marker.setMap) {
+            marker.setMap(null);
+          }
+        });
+      }
+      mapRef.current = null;
+    };
   }, []);
 
   // Fetch mosques from API
@@ -204,11 +238,12 @@ export default function MosquesPage() {
 
   return (
     <div className="container mx-auto py-12 px-4">
-      {/* Google Maps API Script */}
+      {/* Google Maps API Script - Using strategy="afterInteractive" and onLoad handler */}
       <Script
-        src={`https://maps.googleapis.com/maps/api/js?key=AIzaSyBNLrJhOMz6idD05pzfn5lhA-TAw-mAZCU&callback=initMap&libraries=places`}
-        async
-        defer
+        id="google-maps-script"
+        strategy="afterInteractive"
+        src={`https://maps.googleapis.com/maps/api/js?key=AIzaSyBNLrJhOMz6idD05pzfn5lhA-TAw-mAZCU&libraries=places`}
+        onLoad={handleScriptLoad}
       />
 
       <div className="text-center mb-12">
