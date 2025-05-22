@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
-import GoogleMap from "@/components/mosque/GoogleMap";
+import MosqueMap from "@/components/mosque/GoogleMap";
 
 // Define mosque interface
 interface Mosque {
@@ -135,8 +135,8 @@ export default function MosquesPage() {
         </div>
       </div>
 
-      {/* Map - Using the dedicated GoogleMap component */}
-      {!loading && !error && <GoogleMap mosques={filteredMosques} />}
+      {/* Map - Using the dedicated MosqueMap component */}
+      {!loading && !error && <MosqueMap mosques={filteredMosques} />}
 
       {/* Map placeholder when loading or error */}
       {(loading || error) && (
