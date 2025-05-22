@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
-import Script from "next/script";
+import GoogleMap from "@/components/mosque/GoogleMap";
 
 // Define mosque interface
 interface Mosque {
@@ -28,14 +28,6 @@ interface Mosque {
   };
 }
 
-// Define google maps window interface
-declare global {
-  interface Window {
-    initMap: () => void;
-    google: any;
-  }
-}
-
 export default function MosquesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -44,13 +36,6 @@ export default function MosquesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const { toast } = useToast();
-
-  // Add refs for map and markers
-  const mapRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
 
   // Filter the mosques based on search term and filters
   const filteredMosques = mosques.filter((mosque) => {
@@ -75,140 +60,6 @@ export default function MosquesPage() {
 
     return matchesSearch && matchesLocation && matchesFeature;
   });
-
-  // Initialize map - make it a useCallback to avoid recreation
-  const initMap = useCallback(() => {
-    if (!window.google || !mapContainerRef.current || !scriptLoaded) return;
-
-    // Prevent multiple initializations
-    if (mapRef.current) return;
-
-    try {
-      // Default center (can be anywhere in the UK)
-      const defaultCenter = { lat: 51.5074, lng: -0.1278 }; // London
-
-      // Create map
-      mapRef.current = new window.google.maps.Map(mapContainerRef.current, {
-        zoom: 10,
-        center: defaultCenter,
-        mapTypeControl: true,
-        streetViewControl: false,
-        fullscreenControl: true,
-      });
-
-      setMapLoaded(true);
-    } catch (error) {
-      console.error("Error initializing Google Maps:", error);
-    }
-  }, [scriptLoaded]);
-
-  // Handle script load
-  const handleScriptLoad = useCallback(() => {
-    setScriptLoaded(true);
-  }, []);
-
-  // Update map markers when mosques change
-  useEffect(() => {
-    if (!mapLoaded || !mapRef.current || !window.google) return;
-
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.setMap(null));
-    markersRef.current = [];
-
-    // Create new markers for filtered mosques
-    const bounds = new window.google.maps.LatLngBounds();
-    let markersAdded = 0;
-
-    filteredMosques.forEach(mosque => {
-      // Check if mosque has location data
-      if (mosque.location?.coordinates &&
-          mosque.location.coordinates[0] !== 0 &&
-          mosque.location.coordinates[1] !== 0) {
-
-        const position = {
-          lat: mosque.location.coordinates[1], // Latitude is second in GeoJSON
-          lng: mosque.location.coordinates[0]  // Longitude is first in GeoJSON
-        };
-
-        // Create marker
-        try {
-          const marker = new window.google.maps.Marker({
-            position,
-            map: mapRef.current,
-            title: mosque.name,
-            animation: window.google.maps.Animation.DROP
-          });
-
-          // Create info window
-          const infoWindow = new window.google.maps.InfoWindow({
-            content: `
-              <div style="max-width: 200px;">
-                <h3 style="margin: 0 0 5px; font-size: 16px;">${mosque.name}</h3>
-                <p style="margin: 0 0 5px; font-size: 12px;">${mosque.address}, ${mosque.city}</p>
-                <a href="/mosques/${mosque._id}" style="font-size: 12px; color: #1d4ed8;">View Details</a>
-              </div>
-            `
-          });
-
-          // Add click listener for info window
-          marker.addListener('click', () => {
-            infoWindow.open(mapRef.current, marker);
-          });
-
-          // Store marker for later cleanup
-          markersRef.current.push(marker);
-
-          // Extend bounds to include this marker
-          bounds.extend(position);
-          markersAdded++;
-        } catch (error) {
-          console.error("Error creating marker:", error);
-        }
-      }
-    });
-
-    // Adjust map view to fit all markers if we have any
-    if (markersAdded > 0) {
-      try {
-        mapRef.current.fitBounds(bounds);
-
-        // If only one marker, zoom out a bit
-        if (markersAdded === 1) {
-          window.google.maps.event.addListenerOnce(mapRef.current, 'bounds_changed', () => {
-            mapRef.current.setZoom(Math.min(14, mapRef.current.getZoom()));
-          });
-        }
-      } catch (error) {
-        console.error("Error adjusting map view:", error);
-      }
-    }
-  }, [filteredMosques, mapLoaded]);
-
-  // Setup Google Maps when script is loaded
-  useEffect(() => {
-    if (scriptLoaded) {
-      // Make sure we're in the browser
-      if (typeof window !== 'undefined') {
-        window.initMap = initMap;
-        initMap();
-      }
-    }
-  }, [scriptLoaded, initMap]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Cleanup markers
-      if (markersRef.current) {
-        markersRef.current.forEach(marker => {
-          if (marker && marker.setMap) {
-            marker.setMap(null);
-          }
-        });
-      }
-      mapRef.current = null;
-    };
-  }, []);
 
   // Fetch mosques from API
   useEffect(() => {
@@ -238,14 +89,6 @@ export default function MosquesPage() {
 
   return (
     <div className="container mx-auto py-12 px-4">
-      {/* Google Maps API Script - Using strategy="afterInteractive" and onLoad handler */}
-      <Script
-        id="google-maps-script"
-        strategy="afterInteractive"
-        src={`https://maps.googleapis.com/maps/api/js?key=AIzaSyBNLrJhOMz6idD05pzfn5lhA-TAw-mAZCU&libraries=places`}
-        onLoad={handleScriptLoad}
-      />
-
       <div className="text-center mb-12">
         <h1 className="text-3xl font-bold mb-4">Mosque Directory</h1>
         <p className="text-gray-600 max-w-2xl mx-auto">
@@ -292,18 +135,24 @@ export default function MosquesPage() {
         </div>
       </div>
 
-      {/* Map */}
-      <div
-        ref={mapContainerRef}
-        className="w-full h-[400px] rounded-lg mb-8 bg-gray-100 overflow-hidden"
-      >
-        {!mapLoaded && (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-green-600 border-r-transparent"></div>
-            <p className="ml-2 text-gray-600">Loading map...</p>
-          </div>
-        )}
-      </div>
+      {/* Map - Using the dedicated GoogleMap component */}
+      {!loading && !error && <GoogleMap mosques={filteredMosques} />}
+
+      {/* Map placeholder when loading or error */}
+      {(loading || error) && (
+        <div className="w-full h-[400px] rounded-lg mb-8 bg-gray-100 flex items-center justify-center">
+          {loading ? (
+            <>
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-green-600 border-r-transparent"></div>
+              <p className="ml-2 text-gray-600">Loading mosque data...</p>
+            </>
+          ) : (
+            <p className="text-gray-500">
+              Map could not be loaded. Please try again later.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Loading state */}
       {loading && (
