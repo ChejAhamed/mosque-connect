@@ -65,6 +65,7 @@ function LoginForm() {
   const error = searchParams?.get("error");
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -83,9 +84,11 @@ function LoginForm() {
 
     if (error) {
       if (error === "CredentialsSignin") {
-        setLoginError("Invalid email or password. Please try again.");
+        setLoginError("Invalid email or password. Please try again. You can use the demo login option below.");
+      } else if (error === "DatabaseConnection") {
+        setLoginError("Unable to connect to the database. Please try the demo login or try again later.");
       } else {
-        setLoginError("An error occurred during login. Please try again.");
+        setLoginError("An error occurred during login. Please try again or use the demo login option.");
       }
     }
   }, [registered, registeredEmail, error]);
@@ -102,14 +105,43 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setLoginError("Invalid email or password. Please try again.");
+        if (result.error === "CredentialsSignin") {
+          setLoginError("Invalid email or password. Please try again or use the demo login option.");
+        } else {
+          setLoginError(`Login error: ${result.error}. You can try the demo login below.`);
+        }
       } else {
         router.push(callbackUrl);
       }
     } catch (err) {
-      setLoginError("An error occurred during login. Please try again.");
+      console.error("Login error:", err);
+      setLoginError("An error occurred during login. Please try again or use the demo login option.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleDemoLogin() {
+    setIsDemoLoading(true);
+    setLoginError("");
+
+    try {
+      const result = await signIn("credentials", {
+        email: "demo@example.com",
+        password: "password",
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setLoginError(`Demo login failed: ${result.error}. Please try again later.`);
+      } else {
+        router.push(callbackUrl);
+      }
+    } catch (err) {
+      console.error("Demo login error:", err);
+      setLoginError("An error occurred during demo login. Please try again later.");
+    } finally {
+      setIsDemoLoading(false);
     }
   }
 
@@ -165,11 +197,26 @@ function LoginForm() {
                 )}
               />
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || isDemoLoading}>
                 {isLoading ? "Logging in..." : "Login"}
               </Button>
             </form>
           </Form>
+
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <p className="text-center text-sm text-gray-500 mb-2">Or continue with</p>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleDemoLogin}
+              disabled={isLoading || isDemoLoading}
+            >
+              {isDemoLoading ? "Logging in..." : "Demo Login"}
+            </Button>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              No account needed. Use demo login to try the application.
+            </p>
+          </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-sm text-center text-gray-500">

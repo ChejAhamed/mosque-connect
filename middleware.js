@@ -4,7 +4,7 @@ export function middleware(request) {
   const pathname = request.nextUrl.pathname;
 
   // Handle OPTIONS requests for CORS preflight
-  if (request.method === 'OPTIONS' && pathname.startsWith('/api/')) {
+  if (request.method === 'OPTIONS') {
     // Use the most permissive headers for preflight
     return new NextResponse(null, {
       status: 200,
@@ -18,8 +18,8 @@ export function middleware(request) {
     });
   }
 
-  // Special handling for /api/auth routes (add Authorization header)
-  if (pathname.startsWith('/api/auth/')) {
+  // Special handling for all auth routes - needs Authorization header
+  if (pathname.startsWith('/api/auth')) {
     const response = NextResponse.next();
     response.headers.append('Access-Control-Allow-Credentials', 'true');
     response.headers.append('Access-Control-Allow-Origin', '*');
@@ -48,8 +48,10 @@ export function middleware(request) {
   return NextResponse.next();
 }
 
+// Configure which paths this middleware applies to
 export const config = {
   matcher: [
     '/api/:path*',
+    '/api/auth/:path*',
   ],
 };
