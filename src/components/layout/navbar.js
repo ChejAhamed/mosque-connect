@@ -74,7 +74,7 @@ export function Navbar() {
     const role = session.user?.role;
 
     if (role === "admin") {
-      return { href: "/admin/unified-dashboard", label: "Admin Dashboard" };
+      return { href: "/admin/dashboard", label: "🔧 Admin Dashboard" };
     } else if (role === "imam") {
       return { href: "/dashboard/imam", label: "Imam Dashboard" };
     } else if (role === "business") {
@@ -86,23 +86,23 @@ export function Navbar() {
 
   // Get any special actions based on user role
   const getSpecialActions = () => {
-    if (!session) return [];
-
-    const role = session.user?.role;
+    const role = session?.user?.role;
     const actions = [];
 
     if (role === "imam" || role === "admin") {
-      actions.push({ href: "/mosques/register", label: "Register Mosque" });
+      actions.push({ href: "/dashboard/imam", label: "Imam Dashboard" });
     }
 
-    // Add management links for admins
     if (role === "admin") {
-      actions.push({ href: "/admin/unified-dashboard", label: "Approval Dashboard" });
+      actions.push({ href: "/admin/dashboard", label: "🔧 Admin Dashboard" });
       actions.push({ href: "/admin/mosques", label: "Manage Mosques" });
+      actions.push({ href: "/admin/businesses", label: "Manage Businesses" });
+      actions.push({ href: "/admin/volunteers", label: "Manage Volunteers" });
+      actions.push({ href: "/admin/users", label: "Manage Users" });
+      actions.push({ href: "/admin/analytics", label: "Analytics & Reports" });
     }
 
     if (role === "business" || role === "admin") {
-      actions.push({ href: "/dashboard/business/products", label: "Manage Products" });
       actions.push({ href: "/dashboard/business/announcements", label: "Manage Announcements" });
     }
 
@@ -146,6 +146,19 @@ export function Navbar() {
                       </Link>
                     </NavigationMenuItem>
                   ))}
+                {/* Prominent Admin Dashboard link for admin users */}
+                {session?.user?.role === "admin" && (
+                  <NavigationMenuItem>
+                    <Link href="/admin/dashboard" legacyBehavior passHref>
+                      <NavigationMenuLink
+                        className={`${navigationMenuTriggerStyle()} text-red-600 font-bold`}
+                        active={pathname === "/admin/dashboard"}
+                      >
+                        🔧 Admin Dashboard
+                      </NavigationMenuLink>
+                    </Link>
+                  </NavigationMenuItem>
+                )}
               </NavigationMenuList>
             </NavigationMenu>
 
@@ -247,7 +260,17 @@ export function Navbar() {
                   </Link>
                 ))}
 
-              {dashboardLink && (
+              {/* Prominent Admin Dashboard link for admin users in mobile menu */}
+              {session?.user?.role === "admin" && (
+                <Link
+                  href="/admin/dashboard"
+                  className="px-3 py-2 text-red-600 font-bold rounded-md bg-red-50 hover:bg-red-100"
+                >
+                  🔧 Admin Dashboard
+                </Link>
+              )}
+
+              {dashboardLink && session?.user?.role !== "admin" && (
                 <Link
                   href={dashboardLink.href}
                   className="px-3 py-2 text-gray-700 rounded-md hover:bg-gray-50"

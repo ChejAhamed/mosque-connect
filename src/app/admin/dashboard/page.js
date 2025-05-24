@@ -1,548 +1,674 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 import axios from 'axios';
 import { useToast } from '@/hooks/use-toast';
 import {
-  User, Users, Store, MapPin, ChevronUp, Activity,
-  BarChart, PieChart, Building, Award, CheckCircle, XCircle, Clock
-} from 'lucide-react';
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@/components/ui/tabs';
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  CardDescription
+} from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-states';
-
-// Initial stats structure
-const INITIAL_STATS = {
-  users: { total: 0, male: 0, female: 0, other: 0 },
-  imams: { total: 0, male: 0, female: 0 },
-  businesses: { total: 0, categories: [] },
-  volunteers: { total: 0 },
-  cities: { total: 0, top: [] },
-  mosques: { total: 0 },
-  halalCertifications: { total: 0, pending: 0, approved: 0, rejected: 0 }
-};
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line
+} from 'recharts';
+import {
+  Users,
+  Building,
+  UserCheck,
+  MapPin,
+  TrendingUp,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Eye,
+  Edit,
+  Trash2,
+  Activity,
+  Calendar,
+  Mail,
+  Phone
+} from 'lucide-react';
 
 export default function AdminDashboard() {
-  const router = useRouter();
   const { data: session, status } = useSession();
+  const router = useRouter();
   const { toast } = useToast();
-  const [stats, setStats] = useState(INITIAL_STATS);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
 
-  // Fetch dashboard statistics
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalMosques: 0,
+    totalBusinesses: 0,
+    totalVolunteers: 0,
+    pendingApprovals: 0,
+    mosqueStats: { pending: 0, approved: 0, rejected: 0 },
+    userGrowth: [],
+    businessByCategory: []
+  });
+
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [mosques, setMosques] = useState([]);
+  const [businesses, setBusinesses] = useState([]);
+  const [volunteers, setVolunteers] = useState([]);
+  const [users, setUsers] = useState([]);
+
+  // Authentication check
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setIsLoading(true);
-
-        // Check if user is authenticated and is admin
-        if (status === 'unauthenticated') {
-          router.push('/login?callbackUrl=/admin/dashboard');
-          return;
-        }
-
-        if (status === 'authenticated' && session.user.role !== 'admin') {
-          router.push('/unauthorized');
-          return;
-        }
-
-        // Fetch real stats from API
-        const response = await axios.get('/api/admin/stats');
-        setStats(response.data.stats);
-      } catch (error) {
-        console.error('Failed to fetch dashboard stats:', error);
-
-        // If API fails, use fallback demo data
-        const demoStats = generateDemoStats();
-        setStats(demoStats);
-
-        toast({
-          title: 'Using Demo Data',
-          description: 'Showing sample data as we couldn\'t fetch real statistics',
-          variant: 'default'
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (status !== 'loading') {
-      fetchStats();
+    if (status === "unauthenticated") {
+      router.push("/login?callbackUrl=/admin/dashboard");
+      return;
     }
-  }, [toast, router, status, session]);
 
-  if (status === 'loading' || isLoading) {
-    return <LoadingSpinner message="Loading dashboard statistics..." />;
+    if (status === "authenticated" && session?.user?.role !== "admin") {
+      router.push("/unauthorized");
+      return;
+    }
+
+    if (status === "authenticated") {
+      fetchDashboardData();
+    }
+  }, [status, session, router]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch all dashboard data in parallel
+      const [
+        statsRes,
+        mosquesRes,
+        businessesRes,
+        volunteersRes,
+        usersRes,
+        activityRes
+      ] = await Promise.all([
+        axios.get('/api/admin/stats'),
+        axios.get('/api/admin/mosques'),
+        axios.get('/api/admin/businesses'),
+        axios.get('/api/admin/volunteers'),
+        axios.get('/api/admin/users'),
+        axios.get('/api/admin/activity')
+      ]);
+
+      setStats(statsRes.data);
+      setMosques(mosquesRes.data || []);
+      setBusinesses(businessesRes.data || []);
+      setVolunteers(volunteersRes.data || []);
+      setUsers(usersRes.data || []);
+      setRecentActivity(activityRes.data || []);
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMosqueAction = async (mosqueId, action) => {
+    try {
+      await axios.patch(`/api/admin/mosques/${mosqueId}`, { status: action });
+      toast({
+        title: "Success",
+        description: `Mosque ${action === 'approved' ? 'approved' : 'rejected'} successfully`
+      });
+      fetchDashboardData();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update mosque status",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUserAction = async (userId, action) => {
+    try {
+      await axios.patch(`/api/admin/users/${userId}`, { status: action });
+      toast({
+        title: "Success",
+        description: `User ${action} successfully`
+      });
+      fetchDashboardData();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update user status",
+        variant: "destructive"
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <LoadingSpinner />
+        </div>
+      </div>
+    );
   }
 
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <p className="text-gray-600">Comprehensive system management and analytics</p>
+        </div>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={fetchDashboardData}>
+            <Activity className="h-4 w-4 mr-2" />
+            Refresh Data
+          </Button>
+        </div>
+      </div>
 
-      <Tabs
-        defaultValue="overview"
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="space-y-6"
-      >
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="imams">Imams</TabsTrigger>
-          <TabsTrigger value="businesses">Businesses</TabsTrigger>
-          <TabsTrigger value="locations">Locations</TabsTrigger>
-        </TabsList>
+      {/* Statistics Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalUsers}</div>
+            <p className="text-xs text-muted-foreground">All registered users</p>
+          </CardContent>
+        </Card>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              title="Total Users"
-              value={stats.users.total}
-              description="Registered accounts"
-              icon={<Users className="h-8 w-8 text-blue-500" />}
-            />
-            <StatCard
-              title="Mosques"
-              value={stats.mosques.total}
-              description="Registered mosques"
-              icon={<Building className="h-8 w-8 text-green-600" />}
-            />
-            <StatCard
-              title="Businesses"
-              value={stats.businesses.total}
-              description="Registered businesses"
-              icon={<Store className="h-8 w-8 text-purple-600" />}
-            />
-            <StatCard
-              title="Volunteers"
-              value={stats.volunteers.total}
-              description="Active volunteers"
-              icon={<User className="h-8 w-8 text-orange-500" />}
-            />
-          </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Mosques</CardTitle>
+            <Building className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalMosques}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.mosqueStats.approved} approved, {stats.mosqueStats.pending} pending
+            </p>
+          </CardContent>
+        </Card>
 
-          {/* Admin Tools Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            <Card className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Mosque Management</CardTitle>
-                <CardDescription>Manage mosque approval requests</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500 mb-4">
-                  Review and approve mosque registration requests from imams and administrators.
-                </p>
-                <div className="flex justify-end">
-                  <a href="/admin/mosques" className="text-green-600 hover:text-green-800 font-medium text-sm">
-                    Manage Mosques →
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Businesses</CardTitle>
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalBusinesses}</div>
+            <p className="text-xs text-muted-foreground">Active businesses</p>
+          </CardContent>
+        </Card>
 
-            <Card className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Mosque Statistics</CardTitle>
-                <CardDescription>Analyze mosque data and trends</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500 mb-4">
-                  View detailed statistics and charts about mosques, their features, and geographic distribution.
-                </p>
-                <div className="flex justify-end">
-                  <a href="/admin/mosque-statistics" className="text-green-600 hover:text-green-800 font-medium text-sm">
-                    View Statistics →
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Volunteers</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalVolunteers}</div>
+            <p className="text-xs text-muted-foreground">Active volunteers</p>
+          </CardContent>
+        </Card>
 
-            <Card className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Mosque Map</CardTitle>
-                <CardDescription>Interactive mosque location map</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500 mb-4">
-                  Explore mosque locations on an interactive map with search and filtering capabilities.
-                </p>
-                <div className="flex justify-end">
-                  <a href="/admin/mosque-map" className="text-green-600 hover:text-green-800 font-medium text-sm">
-                    Open Map →
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{stats.pendingApprovals}</div>
+            <p className="text-xs text-muted-foreground">Need attention</p>
+          </CardContent>
+        </Card>
+      </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Halal Certifications</CardTitle>
-                <CardDescription>Status of certification requests</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80 flex items-center justify-center">
-                  <div className="w-full max-w-md">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                      <StatCard
-                        title="Pending"
-                        value={stats.halalCertifications.pending}
-                        description="Awaiting review"
-                        icon={<Clock className="h-6 w-6 text-yellow-500" />}
-                        compact
-                      />
-                      <StatCard
-                        title="Approved"
-                        value={stats.halalCertifications.approved}
-                        description="Certified halal"
-                        icon={<CheckCircle className="h-6 w-6 text-green-500" />}
-                        compact
-                      />
+      {/* Main Dashboard Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Main Content Area */}
+        <div className="lg:col-span-3">
+          <Tabs defaultValue="overview" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-6">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="businesses">Businesses</TabsTrigger>
+              <TabsTrigger value="mosques">Mosques</TabsTrigger>
+              <TabsTrigger value="volunteers">Volunteers</TabsTrigger>
+              <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            </TabsList>
+
+            {/* Overview Tab */}
+            <TabsContent value="overview" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* User Growth Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>User Growth Trend</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <LineChart data={stats.userGrowth}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="users" stroke="#8884d8" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Mosque Status Distribution */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Mosque Status Distribution</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Approved', value: stats.mosqueStats.approved },
+                            { name: 'Pending', value: stats.mosqueStats.pending },
+                            { name: 'Rejected', value: stats.mosqueStats.rejected }
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {[
+                            { name: 'Approved', value: stats.mosqueStats.approved },
+                            { name: 'Pending', value: stats.mosqueStats.pending },
+                            { name: 'Rejected', value: stats.mosqueStats.rejected }
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Link href="/admin/mosques">
+                      <Button className="w-full" variant="outline">
+                        <Building className="h-4 w-4 mr-2" />
+                        Review Mosque Requests
+                      </Button>
+                    </Link>
+                    <Link href="/admin/volunteers">
+                      <Button className="w-full" variant="outline">
+                        <UserCheck className="h-4 w-4 mr-2" />
+                        Manage Volunteers
+                      </Button>
+                    </Link>
+                    <Link href="/admin/analytics">
+                      <Button className="w-full" variant="outline">
+                        <TrendingUp className="h-4 w-4 mr-2" />
+                        View Analytics
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Businesses Tab */}
+            <TabsContent value="businesses">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Business Management</CardTitle>
+                  <CardDescription>Manage registered businesses and their information</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Business Name</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Owner</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {businesses.slice(0, 10).map((business) => (
+                        <TableRow key={business._id}>
+                          <TableCell className="font-medium">{business.name}</TableCell>
+                          <TableCell>{business.category}</TableCell>
+                          <TableCell>{business.owner?.name || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge variant={business.status === 'active' ? 'default' : 'secondary'}>
+                              {business.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button size="sm" variant="outline">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="outline">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+                <CardFooter>
+                  <Link href="/admin/businesses">
+                    <Button>View All Businesses</Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* Mosques Tab */}
+            <TabsContent value="mosques">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Mosque Management</CardTitle>
+                  <CardDescription>Review and approve mosque registration requests</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Mosque Name</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Imam</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {mosques.slice(0, 10).map((mosque) => (
+                        <TableRow key={mosque._id}>
+                          <TableCell className="font-medium">{mosque.name}</TableCell>
+                          <TableCell>{mosque.address?.city}, {mosque.address?.state}</TableCell>
+                          <TableCell>{mosque.imam?.name || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              mosque.status === 'approved' ? 'default' :
+                              mosque.status === 'pending' ? 'secondary' : 'destructive'
+                            }>
+                              {mosque.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              {mosque.status === 'pending' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleMosqueAction(mosque._id, 'approved')}
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleMosqueAction(mosque._id, 'rejected')}
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                              <Button size="sm" variant="outline">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+                <CardFooter>
+                  <Link href="/admin/mosques">
+                    <Button>View All Mosques</Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* Volunteers Tab */}
+            <TabsContent value="volunteers">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Volunteer Management</CardTitle>
+                  <CardDescription>Manage volunteer applications and assignments</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Skills</TableHead>
+                        <TableHead>Availability</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {volunteers.slice(0, 10).map((volunteer) => (
+                        <TableRow key={volunteer._id}>
+                          <TableCell className="font-medium">{volunteer.name}</TableCell>
+                          <TableCell>{volunteer.skills?.slice(0, 2).join(', ')}</TableCell>
+                          <TableCell>{volunteer.availability}</TableCell>
+                          <TableCell>
+                            <Badge variant={volunteer.status === 'active' ? 'default' : 'secondary'}>
+                              {volunteer.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button size="sm" variant="outline">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="outline">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+                <CardFooter>
+                  <Link href="/admin/volunteers">
+                    <Button>View All Volunteers</Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* Users Tab */}
+            <TabsContent value="users">
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Management</CardTitle>
+                  <CardDescription>Manage user accounts and permissions</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.slice(0, 10).map((user) => (
+                        <TableRow key={user._id}>
+                          <TableCell className="font-medium">{user.name}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{user.role}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
+                              {user.status || 'active'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button size="sm" variant="outline">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="outline">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+                <CardFooter>
+                  <Link href="/admin/users">
+                    <Button>View All Users</Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            {/* Analytics Tab */}
+            <TabsContent value="analytics">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Business by Category</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={stats.businessByCategory}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="category" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#8884d8" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>System Performance</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span>Database Performance</span>
+                        <Badge variant="default">Excellent</Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>API Response Time</span>
+                        <Badge variant="default">Good</Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>User Activity</span>
+                        <Badge variant="default">High</Badge>
+                      </div>
                     </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
 
-                    <div className="flex flex-col space-y-4">
-                      <CertificationBar
-                        label="Pending"
-                        count={stats.halalCertifications.pending}
-                        total={stats.halalCertifications.total}
-                        color="bg-yellow-500"
-                        icon={<Clock className="h-4 w-4 mr-2 text-yellow-500" />}
-                      />
-                      <CertificationBar
-                        label="Approved"
-                        count={stats.halalCertifications.approved}
-                        total={stats.halalCertifications.total}
-                        color="bg-green-500"
-                        icon={<CheckCircle className="h-4 w-4 mr-2 text-green-500" />}
-                      />
-                      <CertificationBar
-                        label="Rejected"
-                        count={stats.halalCertifications.rejected}
-                        total={stats.halalCertifications.total}
-                        color="bg-red-500"
-                        icon={<XCircle className="h-4 w-4 mr-2 text-red-500" />}
-                      />
+        {/* Recent Activity Sidebar */}
+        <div className="lg:col-span-1">
+          <Card className="sticky top-6">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Activity className="h-5 w-5 mr-2" />
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentActivity.slice(0, 10).map((activity, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      {activity.type === 'mosque_approved' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                      {activity.type === 'mosque_rejected' && <XCircle className="h-4 w-4 text-red-500" />}
+                      {activity.type === 'user_registered' && <Users className="h-4 w-4 text-blue-500" />}
+                      {activity.type === 'business_registered' && <Building className="h-4 w-4 text-purple-500" />}
+                      {!['mosque_approved', 'mosque_rejected', 'user_registered', 'business_registered'].includes(activity.type) &&
+                        <AlertCircle className="h-4 w-4 text-gray-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-900">{activity.description}</p>
+                      <p className="text-xs text-gray-500">{activity.timestamp}</p>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Cities</CardTitle>
-                <CardDescription>{stats.cities.total} cities in total</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80 flex flex-col justify-between">
-                  <div className="space-y-4">
-                    {stats.cities.top.slice(0, 5).map((city, index) => (
-                      <CityBar
-                        key={city.name}
-                        name={city.name}
-                        count={city.count}
-                        rank={index + 1}
-                      />
-                    ))}
-                  </div>
-                  <div className="text-center mt-4">
-                    <button
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                      onClick={() => setActiveTab('locations')}
-                    >
-                      View all cities →
-                    </button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Users Tab */}
-        <TabsContent value="users" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard
-              title="Total Users"
-              value={stats.users.total}
-              description="Registered accounts"
-              icon={<Users className="h-8 w-8 text-blue-500" />}
-            />
-            <StatCard
-              title="Male Users"
-              value={stats.users.male}
-              description={`${Math.round(stats.users.male / stats.users.total * 100) || 0}% of users`}
-              icon={<User className="h-8 w-8 text-blue-600" />}
-            />
-            <StatCard
-              title="Female Users"
-              value={stats.users.female}
-              description={`${Math.round(stats.users.female / stats.users.total * 100) || 0}% of users`}
-              icon={<User className="h-8 w-8 text-pink-500" />}
-            />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>User Demographics</CardTitle>
-              <CardDescription>Detailed breakdown of user statistics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center p-12 text-gray-500">
-                <BarChart className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Detailed user analytics charts will be implemented here</p>
-                <p className="text-sm mt-2">Coming soon in the next update</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Imams Tab */}
-        <TabsContent value="imams" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard
-              title="Total Imams"
-              value={stats.imams.total}
-              description="Mosque representatives"
-              icon={<MapPin className="h-8 w-8 text-green-600" />}
-            />
-            <StatCard
-              title="Mosques"
-              value={stats.mosques.total}
-              description="Registered mosques"
-              icon={<Building className="h-8 w-8 text-green-700" />}
-            />
-            <StatCard
-              title="Imam-Mosque Ratio"
-              value={stats.mosques.total > 0 ? (stats.imams.total / stats.mosques.total).toFixed(2) : 0}
-              description="Imams per mosque"
-              icon={<Award className="h-8 w-8 text-green-500" />}
-            />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Mosque Distribution</CardTitle>
-              <CardDescription>Total mosques: {stats.mosques.total}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center p-12 text-gray-500">
-                <PieChart className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Mosque distribution charts will be implemented here</p>
-                <p className="text-sm mt-2">Coming soon in the next update</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Businesses Tab */}
-        <TabsContent value="businesses" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard
-              title="Total Businesses"
-              value={stats.businesses.total}
-              description="Registered businesses"
-              icon={<Store className="h-8 w-8 text-purple-600" />}
-            />
-            <StatCard
-              title="Business Categories"
-              value={stats.businesses.categories?.length || 0}
-              description="Different business types"
-              icon={<Activity className="h-8 w-8 text-purple-500" />}
-            />
-            <StatCard
-              title="Halal Certified"
-              value={stats.halalCertifications.approved}
-              description={`${Math.round((stats.halalCertifications.approved / stats.businesses.total) * 100) || 0}% of businesses`}
-              icon={<Award className="h-8 w-8 text-purple-500" />}
-            />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Business Analytics</CardTitle>
-              <CardDescription>Detailed breakdown of business statistics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center p-12 text-gray-500">
-                <BarChart className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Detailed business analytics will be implemented here</p>
-                <p className="text-sm mt-2">Coming soon in the next update</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Locations Tab */}
-        <TabsContent value="locations" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <StatCard
-              title="Total Cities"
-              value={stats.cities.total}
-              description="Cities with users"
-              icon={<MapPin className="h-8 w-8 text-red-500" />}
-            />
-            {stats.cities.top.length > 0 && (
-              <StatCard
-                title="Top City"
-                value={stats.cities.top[0]?.name || "None"}
-                description={`${stats.cities.top[0]?.count || 0} users`}
-                icon={<MapPin className="h-8 w-8 text-blue-500" />}
-              />
-            )}
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>City Distribution</CardTitle>
-              <CardDescription>Users per city</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                {stats.cities.top.map((city, index) => (
-                  <CityBar
-                    key={city.name}
-                    name={city.name}
-                    count={city.count}
-                    rank={index + 1}
-                  />
                 ))}
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-// Generate demo stats for fallback
-function generateDemoStats() {
-  return {
-    users: {
-      total: Math.floor(Math.random() * 2000) + 1000,
-      male: Math.floor(Math.random() * 800) + 400,
-      female: Math.floor(Math.random() * 800) + 400,
-      other: Math.floor(Math.random() * 50)
-    },
-    imams: {
-      total: Math.floor(Math.random() * 300) + 100,
-      male: Math.floor(Math.random() * 250) + 90,
-      female: Math.floor(Math.random() * 50) + 10
-    },
-    businesses: {
-      total: Math.floor(Math.random() * 500) + 200,
-      categories: ['Restaurant', 'Grocery', 'Butcher', 'Bakery', 'Clothing', 'Electronics', 'Services']
-    },
-    volunteers: {
-      total: Math.floor(Math.random() * 400) + 150
-    },
-    cities: {
-      total: Math.floor(Math.random() * 100) + 20,
-      top: [
-        { name: 'London', count: Math.floor(Math.random() * 500) + 300 },
-        { name: 'Birmingham', count: Math.floor(Math.random() * 300) + 200 },
-        { name: 'Manchester', count: Math.floor(Math.random() * 200) + 150 },
-        { name: 'Leeds', count: Math.floor(Math.random() * 150) + 100 },
-        { name: 'Glasgow', count: Math.floor(Math.random() * 100) + 80 },
-        { name: 'Liverpool', count: Math.floor(Math.random() * 90) + 70 },
-        { name: 'Edinburgh', count: Math.floor(Math.random() * 80) + 60 },
-        { name: 'Cardiff', count: Math.floor(Math.random() * 70) + 50 },
-        { name: 'Bristol', count: Math.floor(Math.random() * 60) + 40 },
-        { name: 'Newcastle', count: Math.floor(Math.random() * 50) + 30 },
-      ]
-    },
-    mosques: {
-      total: Math.floor(Math.random() * 800) + 400
-    },
-    halalCertifications: {
-      total: Math.floor(Math.random() * 250) + 100,
-      pending: Math.floor(Math.random() * 80) + 30,
-      approved: Math.floor(Math.random() * 120) + 50,
-      rejected: Math.floor(Math.random() * 30) + 10
-    }
-  };
-}
-
-// Stat Card Component
-function StatCard({ title, value, description, icon, trend, compact = false }) {
-  return (
-    <Card>
-      <CardContent className={compact ? "p-4" : "p-6"}>
-        <div className="flex justify-between items-start">
-          <div>
-            <p className={`${compact ? "text-xs" : "text-sm"} font-medium text-gray-500`}>{title}</p>
-            <h3 className={`${compact ? "text-xl" : "text-2xl"} font-bold mt-1`}>{typeof value === 'number' ? value.toLocaleString() : value}</h3>
-            <p className={`${compact ? "text-xs" : "text-xs"} text-gray-500 mt-1`}>{description}</p>
-          </div>
-          <div className="bg-gray-100 p-3 rounded-full">{icon}</div>
-        </div>
-
-        {trend !== undefined && (
-          <div className="mt-4 flex items-center">
-            <div className={`flex items-center ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {trend >= 0 ? (
-                <ChevronUp className="h-4 w-4 mr-1" />
-              ) : (
-                <ChevronUp className="h-4 w-4 mr-1 transform rotate-180" />
-              )}
-              <span className="text-sm font-medium">{Math.abs(trend)}%</span>
-            </div>
-            <span className="text-xs text-gray-500 ml-2">since last month</span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// Certification Distribution Bar Component
-function CertificationBar({ label, count, total, color, icon }) {
-  const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
-
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center">
-          {icon}
-          <span className="text-sm font-medium">{label}</span>
-        </div>
-        <div className="text-sm text-gray-500">
-          {count.toLocaleString()} ({percentage}%)
-        </div>
-      </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full ${color}`}
-          style={{ width: `${percentage}%` }}
-        ></div>
-      </div>
-    </div>
-  );
-}
-
-// City Bar Component
-function CityBar({ name, count, rank }) {
-  return (
-    <div className="flex items-center space-x-3">
-      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-        <span className="text-xs font-semibold text-gray-700">{rank}</span>
-      </div>
-      <div className="flex-grow">
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-sm font-medium">{name}</span>
-          <span className="text-xs text-gray-500">{count.toLocaleString()} users</span>
-        </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-blue-500"
-            style={{ width: `${Math.min(100, count / 10)}%` }}
-          ></div>
         </div>
       </div>
     </div>
