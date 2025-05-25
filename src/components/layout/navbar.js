@@ -12,6 +12,17 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import {
+  User,
+  Settings,
+  Shield,
+  Building,
+  Store,
+  Users,
+  HelpCircle,
+  LogOut,
+  LayoutDashboard
+} from 'lucide-react';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -154,7 +165,7 @@ export function Navbar() {
                 </NavigationMenuList>
               </NavigationMenu>
 
-            {/* User Menu or Auth Buttons */}
+           {/* User Menu or Auth Buttons */}
             <div className="ml-4">
               {status === "authenticated" ? (
                 <DropdownMenu>
@@ -169,46 +180,90 @@ export function Navbar() {
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-56">
                     <div className="flex items-center justify-start gap-2 p-2">
                       <div className="flex flex-col space-y-0.5 leading-none">
                         <p className="font-medium text-sm">{displayName}</p>
                         <p className="text-xs text-gray-500">
                           {session.user.email}
                         </p>
+                        <p className="text-xs text-blue-600 capitalize">
+                          {session.user.role || 'user'}
+                        </p>
                       </div>
                     </div>
                     <DropdownMenuSeparator />
 
+                    {/* Profile & Settings Section */}
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="flex items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings" className="flex items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Settings</span>
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+
+                    {/* Dashboard Links */}
                     {dashboardLink && (
                       <DropdownMenuItem asChild>
-                        <Link href={dashboardLink.href}>{dashboardLink.label}</Link>
+                        <Link href={dashboardLink.href} className="flex items-center">
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          <span>{dashboardLink.label}</span>
+                        </Link>
                       </DropdownMenuItem>
                     )}
 
+                    {/* Admin Links */}
                     {specialActions.map((action, index) => (
                       <DropdownMenuItem key={index} asChild>
-                        <Link href={action.href}>{action.label}</Link>
+                        <Link href={action.href} className="flex items-center">
+                          {action.href.includes('admin') && <Shield className="mr-2 h-4 w-4" />}
+                          {action.href.includes('mosque') && <Building className="mr-2 h-4 w-4" />}
+                          {action.href.includes('business') && <Store className="mr-2 h-4 w-4" />}
+                          {action.href.includes('volunteer') && <Users className="mr-2 h-4 w-4" />}
+                          <span>{action.label}</span>
+                        </Link>
                       </DropdownMenuItem>
                     ))}
 
                     <DropdownMenuSeparator />
+                    
+                    {/* Help & Support */}
+                    <DropdownMenuItem asChild>
+                      <Link href="/help" className="flex items-center">
+                        <HelpCircle className="mr-2 h-4 w-4" />
+                        <span>Help & Support</span>
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+                    
+                    {/* Logout */}
                     <DropdownMenuItem
                       onClick={() => signOut({ callbackUrl: "/" })}
+                      className="text-red-600 focus:text-red-600"
                     >
-                      Log Out
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log Out</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
+                // Login buttons for unauthenticated users
                 <div className="flex space-x-2">
                   <Link href="/login">
-                    <Button variant="outline" size="sm">
-                      Log In
-                    </Button>
+                    <Button variant="ghost">Log In</Button>
                   </Link>
                   <Link href="/register">
-                    <Button size="sm">Register</Button>
+                    <Button>Sign Up</Button>
                   </Link>
                 </div>
               )}
