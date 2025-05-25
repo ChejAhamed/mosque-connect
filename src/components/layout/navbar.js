@@ -98,10 +98,16 @@ export function Navbar() {
     // Add management links for admins
     if (role === "admin") {
       actions.push({ href: "/admin/unified-dashboard", label: "Approval Dashboard" });
+      actions.push({ href: "/admin/dashboard", label: "Dashboard" });
       actions.push({ href: "/admin/mosques", label: "Manage Mosques" });
     }
 
     if (role === "business" || role === "admin") {
+      actions.push({ href: "/dashboard/business/products", label: "Manage Products" });
+      actions.push({ href: "/dashboard/business/announcements", label: "Manage Announcements" });
+    }
+
+     if (role === "business") {
       actions.push({ href: "/dashboard/business/products", label: "Manage Products" });
       actions.push({ href: "/dashboard/business/announcements", label: "Manage Announcements" });
     }
@@ -130,24 +136,23 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            <NavigationMenu>
-              <NavigationMenuList>
-                {navLinks
-                  .filter((link) => link.showAlways || session)
-                  .map((link) => (
-                    <NavigationMenuItem key={link.href}>
-                      <Link href={link.href} legacyBehavior passHref>
+           <NavigationMenu>
+                <NavigationMenuList>
+                  {navLinks
+                    .filter((link) => link.showAlways || session)
+                    .map((link) => (
+                      <NavigationMenuItem key={link.href}>
                         <NavigationMenuLink
+                          href={link.href}
                           className={navigationMenuTriggerStyle()}
                           active={pathname === link.href}
                         >
                           {link.label}
                         </NavigationMenuLink>
-                      </Link>
-                    </NavigationMenuItem>
-                  ))}
-              </NavigationMenuList>
-            </NavigationMenu>
+                      </NavigationMenuItem>
+                    ))}
+                </NavigationMenuList>
+              </NavigationMenu>
 
             {/* User Menu or Auth Buttons */}
             <div className="ml-4">

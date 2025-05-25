@@ -12,6 +12,8 @@ import {
   BarChart, PieChart, Building, Award, CheckCircle, XCircle, Clock
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-states';
+import UserStatsCard from '@/components/admin/UserStatsCard';
+import UserManagementTable from '@/components/admin/UserManagementTable';
 
 // Initial stats structure
 const INITIAL_STATS = {
@@ -98,6 +100,10 @@ export default function AdminDashboard() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
+      
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               title="Total Users"
@@ -179,55 +185,57 @@ export default function AdminDashboard() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* NEW: User Management and Analytics Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* NEW: User Stats Card */}
+            <UserStatsCard />
+
             <Card>
               <CardHeader>
                 <CardTitle>Halal Certifications</CardTitle>
                 <CardDescription>Status of certification requests</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-80 flex items-center justify-center">
-                  <div className="w-full max-w-md">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                      <StatCard
-                        title="Pending"
-                        value={stats.halalCertifications.pending}
-                        description="Awaiting review"
-                        icon={<Clock className="h-6 w-6 text-yellow-500" />}
-                        compact
-                      />
-                      <StatCard
-                        title="Approved"
-                        value={stats.halalCertifications.approved}
-                        description="Certified halal"
-                        icon={<CheckCircle className="h-6 w-6 text-green-500" />}
-                        compact
-                      />
-                    </div>
+                <div className="w-full max-w-md">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <StatCard
+                      title="Pending"
+                      value={stats.halalCertifications.pending}
+                      description="Awaiting review"
+                      icon={<Clock className="h-6 w-6 text-yellow-500" />}
+                      compact
+                    />
+                    <StatCard
+                      title="Approved"
+                      value={stats.halalCertifications.approved}
+                      description="Certified halal"
+                      icon={<CheckCircle className="h-6 w-6 text-green-500" />}
+                      compact
+                    />
+                  </div>
 
-                    <div className="flex flex-col space-y-4">
-                      <CertificationBar
-                        label="Pending"
-                        count={stats.halalCertifications.pending}
-                        total={stats.halalCertifications.total}
-                        color="bg-yellow-500"
-                        icon={<Clock className="h-4 w-4 mr-2 text-yellow-500" />}
-                      />
-                      <CertificationBar
-                        label="Approved"
-                        count={stats.halalCertifications.approved}
-                        total={stats.halalCertifications.total}
-                        color="bg-green-500"
-                        icon={<CheckCircle className="h-4 w-4 mr-2 text-green-500" />}
-                      />
-                      <CertificationBar
-                        label="Rejected"
-                        count={stats.halalCertifications.rejected}
-                        total={stats.halalCertifications.total}
-                        color="bg-red-500"
-                        icon={<XCircle className="h-4 w-4 mr-2 text-red-500" />}
-                      />
-                    </div>
+                  <div className="flex flex-col space-y-4">
+                    <CertificationBar
+                      label="Pending"
+                      count={stats.halalCertifications.pending}
+                      total={stats.halalCertifications.total}
+                      color="bg-yellow-500"
+                      icon={<Clock className="h-4 w-4 mr-2 text-yellow-500" />}
+                    />
+                    <CertificationBar
+                      label="Approved"
+                      count={stats.halalCertifications.approved}
+                      total={stats.halalCertifications.total}
+                      color="bg-green-500"
+                      icon={<CheckCircle className="h-4 w-4 mr-2 text-green-500" />}
+                    />
+                    <CertificationBar
+                      label="Rejected"
+                      count={stats.halalCertifications.rejected}
+                      total={stats.halalCertifications.total}
+                      color="bg-red-500"
+                      icon={<XCircle className="h-4 w-4 mr-2 text-red-500" />}
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -262,6 +270,10 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </div>
+
+          {/* NEW: Full-width User Management Table */}
+          <UserManagementTable onUserUpdated={() => window.location.reload()} />
+        </TabsContent>
         </TabsContent>
 
         {/* Users Tab */}

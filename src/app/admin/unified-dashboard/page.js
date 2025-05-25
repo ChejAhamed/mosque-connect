@@ -88,7 +88,10 @@ const StatusBadge = ({ status }) => {
   return (
     <Badge className={`flex items-center ${colors[status] || 'bg-gray-100 text-gray-800'}`}>
       {icons[status]}
-      <span>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+      <span>
+        {typeof status === "string" ? status.charAt(0).toUpperCase() + status.slice(1)  : "Unknown"}
+      </span>
+
     </Badge>
   );
 };
