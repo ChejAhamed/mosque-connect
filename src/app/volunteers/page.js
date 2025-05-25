@@ -2,194 +2,219 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function VolunteersPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
-  const [canVolunteer, setCanVolunteer] = useState(false);
+  const [volunteerNeeds, setVolunteerNeeds] = useState([]);
+  const [volunteerOffers, setVolunteerOffers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if the user is a community member and not already a volunteer
-    if (status === "authenticated" &&
-        session?.user?.role === "user" &&
-        session?.user?.volunteerStatus === "not_volunteer") {
-      setCanVolunteer(true);
-    } else {
-      setCanVolunteer(false);
+    fetchVolunteerData();
+  }, []);
+
+  const fetchVolunteerData = async () => {
+    try {
+      const [needsRes, offersRes] = await Promise.all([
+        fetch('/api/volunteers/needs'),
+        fetch('/api/volunteers/offers')
+      ]);
+      
+      if (needsRes.ok) {
+        const needsData = await needsRes.json();
+        setVolunteerNeeds(needsData.data || []);
+      }
+      
+      if (offersRes.ok) {
+        const offersData = await offersRes.json();
+        setVolunteerOffers(offersData.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching volunteer data:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [status, session]);
+  };
+
+  const canPostOffer = status === "authenticated" && session?.user?.role === "user";
+  const canPostNeed = status === "authenticated" && (session?.user?.role === "imam" || session?.user?.role === "admin");
 
   return (
     <div className="container py-10">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold mb-4">Volunteer Opportunities</h1>
-          <p className="text-lg text-gray-600 mb-8">
-            Connect with mosques in your community and offer your skills to make a difference.
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold mb-4">Volunteer Hub</h1>
+          <p className="text-lg text-gray-600 mb-6">
+            Connect volunteer opportunities with community members who want to help.
           </p>
-
-          {canVolunteer && (
-            <Button size="lg" className="bg-orange-500 hover:bg-orange-600" asChild>
-              <Link href="/volunteer/become">Become a Volunteer</Link>
-            </Button>
-          )}
-
-          {status === "authenticated" && session?.user?.volunteerStatus === "pending" && (
-            <Alert className="bg-yellow-50 text-yellow-700 border border-yellow-200 mt-4">
-              <AlertDescription>
-                Your volunteer application is currently pending approval. We'll notify you once it's reviewed.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {status === "authenticated" && session?.user?.volunteerStatus === "active" && (
-            <Alert className="bg-green-50 text-green-700 border border-green-200 mt-4">
-              <AlertDescription>
-                You are an active volunteer! Check your profile for current assignments.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {status === "authenticated" && session?.user?.role !== "user" && (
-            <Alert className="bg-blue-50 text-blue-700 border border-blue-200 mt-4">
-              <AlertDescription>
-                Only community members can register as volunteers. Your current role is {session?.user?.role}.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {status !== "authenticated" && (
-            <Alert className="bg-gray-50 border border-gray-200 mt-4">
-              <AlertDescription>
-                <Link href="/login?callbackUrl=/volunteers" className="text-blue-600 hover:underline">
-                  Login
-                </Link>{" "}
-                or{" "}
-                <Link href="/register?role=user" className="text-blue-600 hover:underline">
-                  Register
-                </Link>{" "}
-                as a community member to become a volunteer.
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 mb-12">
-          {[
-            {
-              title: "Cleaning & Maintenance",
-              description: "Help keep our mosques clean and well-maintained.",
-              skills: ["Cleaning", "Gardening", "Maintenance"],
-              color: "blue",
-            },
-            {
-              title: "Education Programs",
-              description: "Assist with teaching Quran, Islamic studies, and language classes.",
-              skills: ["Teaching", "Childcare", "Curriculum Development"],
-              color: "green",
-            },
-            {
-              title: "Event Organization",
-              description: "Help plan and run community events, iftars, and fundraisers.",
-              skills: ["Event Planning", "Coordination", "Marketing"],
-              color: "purple",
-            },
-            {
-              title: "Technical Support",
-              description: "Assist with IT, website management, and social media.",
-              skills: ["IT Support", "Web Development", "Social Media"],
-              color: "indigo",
-            },
-            {
-              title: "Administration",
-              description: "Help with office work, accounting, and general administration.",
-              skills: ["Administration", "Accounting", "Organization"],
-              color: "pink",
-            },
-            {
-              title: "Community Outreach",
-              description: "Support dawah activities and community engagement initiatives.",
-              skills: ["Communication", "Networking", "Public Relations"],
-              color: "yellow",
-            },
-          ].map((opportunity, index) => (
-            <Card key={index} className="h-full flex flex-col">
-              <CardHeader className={`bg-${opportunity.color}-50 border-b border-${opportunity.color}-100`}>
-                <CardTitle className={`text-${opportunity.color}-800`}>{opportunity.title}</CardTitle>
-                <CardDescription>{opportunity.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow py-4">
-                <h4 className="text-sm font-medium mb-2">Skills Needed:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {opportunity.skills.map((skill, i) => (
-                    <Badge key={i} variant="outline" className="bg-gray-50">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-              <CardFooter className="pt-0">
-                {canVolunteer ? (
-                  <Button size="sm" className="w-full" asChild>
-                    <Link href="/volunteer/become">Apply Now</Link>
-                  </Button>
-                ) : status !== "authenticated" ? (
-                  <Button size="sm" className="w-full" variant="outline" asChild>
-                    <Link href="/login?callbackUrl=/volunteers">Login to Apply</Link>
-                  </Button>
-                ) : (
-                  <Button size="sm" className="w-full" variant="outline" disabled>
-                    {session?.user?.volunteerStatus === "pending"
-                      ? "Application Pending"
-                      : session?.user?.volunteerStatus === "active"
-                        ? "Already Volunteering"
-                        : "Not Available"}
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-
-        <div className="bg-gray-50 rounded-lg p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">How It Works</h2>
-          <div className="grid gap-8 md:grid-cols-3 max-w-3xl mx-auto">
-            <div className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xl font-bold mb-4">
-                1
-              </div>
-              <h3 className="text-lg font-medium mb-2">Register</h3>
-              <p className="text-gray-600">
-                Sign up as a community member and then apply to become a volunteer.
-              </p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xl font-bold mb-4">
-                2
-              </div>
-              <h3 className="text-lg font-medium mb-2">Share Your Skills</h3>
-              <p className="text-gray-600">
-                Tell us about your skills and availability to serve the community.
-              </p>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xl font-bold mb-4">
-                3
-              </div>
-              <h3 className="text-lg font-medium mb-2">Get Matched</h3>
-              <p className="text-gray-600">
-                We'll connect you with mosques that need your specific skills.
-              </p>
-            </div>
+          
+          <div className="flex gap-4 justify-center flex-wrap">
+            {canPostOffer && (
+              <Button asChild>
+                <Link href="/volunteers/post-offer">Post Volunteer Offer</Link>
+              </Button>
+            )}
+            {canPostNeed && (
+              <Button variant="outline" asChild>
+                <Link href="/volunteers/post-need">Post Volunteer Need</Link>
+              </Button>
+            )}
+            {status !== "authenticated" && (
+              <Button asChild>
+                <Link href="/login?callbackUrl=/volunteers">Login to Participate</Link>
+              </Button>
+            )}
           </div>
         </div>
+
+        <Tabs defaultValue="needs" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="needs">Volunteer Needs</TabsTrigger>
+            <TabsTrigger value="offers">Volunteer Offers</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="needs" className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold mb-2">Mosques Need Volunteers</h2>
+              <p className="text-gray-600">Help your local mosques with their community needs</p>
+            </div>
+            
+            {loading ? (
+              <div className="text-center py-8">Loading volunteer needs...</div>
+            ) : volunteerNeeds.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No volunteer needs posted yet.
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {volunteerNeeds.map((need) => (
+                  <Card key={need._id} className="h-full flex flex-col">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-lg">{need.title}</CardTitle>
+                        <Badge variant={need.urgency === 'high' ? 'destructive' : need.urgency === 'medium' ? 'default' : 'secondary'}>
+                          {need.urgency}
+                        </Badge>
+                      </div>
+                      <CardDescription>{need.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <div className="space-y-3">
+                        <div>
+                          <span className="text-sm font-medium">Category: </span>
+                          <Badge variant="outline">{need.category}</Badge>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium">Time: </span>
+                          <span className="text-sm text-gray-600">{need.timeCommitment}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium">Volunteers Needed: </span>
+                          <span className="text-sm text-gray-600">{need.volunteersNeeded}</span>
+                        </div>
+                        {need.skillsRequired?.length > 0 && (
+                          <div>
+                            <span className="text-sm font-medium">Skills: </span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {need.skillsRequired.map((skill, i) => (
+                                <Badge key={i} variant="outline" className="text-xs">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      {status === "authenticated" ? (
+                        <Button size="sm" className="w-full" asChild>
+                          <Link href={`/volunteers/apply?needId=${need._id}`}>Apply</Link>
+                        </Button>
+                      ) : (
+                        <Button size="sm" className="w-full" variant="outline" asChild>
+                          <Link href="/login?callbackUrl=/volunteers">Login to Apply</Link>
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="offers" className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold mb-2">Community Members Offering Help</h2>
+              <p className="text-gray-600">Connect with volunteers ready to serve</p>
+            </div>
+            
+            {loading ? (
+              <div className="text-center py-8">Loading volunteer offers...</div>
+            ) : volunteerOffers.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No volunteer offers posted yet.
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {volunteerOffers.map((offer) => (
+                  <Card key={offer._id} className="h-full flex flex-col">
+                    <CardHeader>
+                      <CardTitle className="text-lg">{offer.title}</CardTitle>
+                      <CardDescription>{offer.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <div className="space-y-3">
+                        <div>
+                          <span className="text-sm font-medium">Category: </span>
+                          <Badge variant="outline">{offer.category}</Badge>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium">Availability: </span>
+                          <span className="text-sm text-gray-600">{offer.availability}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium">Time Commitment: </span>
+                          <span className="text-sm text-gray-600">{offer.timeCommitment}</span>
+                        </div>
+                        {offer.skillsOffered?.length > 0 && (
+                          <div>
+                            <span className="text-sm font-medium">Skills: </span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {offer.skillsOffered.map((skill, i) => (
+                                <Badge key={i} variant="outline" className="text-xs">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      {canPostNeed ? (
+                        <Button size="sm" className="w-full">
+                          Contact Volunteer
+                        </Button>
+                      ) : (
+                        <Button size="sm" className="w-full" variant="outline" disabled>
+                          Contact Info Hidden
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

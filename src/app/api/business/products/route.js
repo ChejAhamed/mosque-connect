@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { connectToDatabase } from '@/lib/db';
+import connectDB from '@/lib/db';
 
 // For static export compatibility
 import BusinessModel from '@/models/Business';
@@ -26,7 +26,7 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Verify user is a business owner
     const user = await UserModel.findById(session.user.id);
@@ -56,7 +56,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Verify user is a business owner
     const user = await UserModel.findById(session.user.id);

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import  connectDB  from '@/lib/db';
 import UserModel from '@/models/User';
 import { hash } from 'bcryptjs';
 import { z } from 'zod';
@@ -29,7 +29,7 @@ export async function POST(req) {
     const { name, email, password, role, city } = result.data;
 
     // Connect to database
-    await connectToDatabase();
+    await connectDB();
 
     // Check if user already exists
     const existingUser = await UserModel.findOne({ email });

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import connectDB from '@/lib/db';
 import Volunteer from '@/models/Volunteer';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -37,7 +37,7 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Find and update the volunteer
     const volunteer = await Volunteer.findById(volunteerId);
@@ -99,7 +99,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Find the volunteer with populated user data
     const volunteer = await Volunteer.findById(volunteerId)

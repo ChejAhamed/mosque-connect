@@ -1,102 +1,111 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { connectToDatabase } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import connectDB from '@/lib/db';
+import { Mosque } from '@/models/Mosque';
 
-// For static export compatibility
-import MosqueModel from "@/models/Mosque";
-
-/**
- * GET handler for retrieving a single mosque by ID
- */
 export async function GET(request, { params }) {
   try {
-    await connectToDatabase();
-    const mosque = await MosqueModel.findById(params.id);
+    const { id } = params;
+    
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: 'Mosque ID is required' },
+        { status: 400 }
+      );
+    }
+
+    await connectDB();
+    
+    const mosque = await Mosque.findById(id)
+      .populate('imamId', 'name email')
+      .lean();
 
     if (!mosque) {
       return NextResponse.json(
-        { error: "Mosque not found" },
+        { success: false, message: 'Mosque not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(mosque);
+    // Convert ObjectId to string
+    const mosqueData = {
+      ...mosque,
+      _id: mosque._id.toString(),
+      imamId: mosque.imamId ? {
+        ...mosque.imamId,
+        _id: mosque.imamId._id.toString()
+      } : null
+    };
+
+    return NextResponse.json({
+      success: true,
+      data: mosqueData,
+    });
   } catch (error) {
+    console.error('Error fetching mosque:', error);
     return NextResponse.json(
-      { error: "Failed to fetch mosque" },
+      { success: false, message: 'Failed to fetch mosque', error: error.message },
       { status: 500 }
     );
   }
 }
 
-/**
- * PATCH handler for updating a mosque by ID
- */
-export async function PATCH(request, { params }) {
+export async function PUT(request, { params }) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
+    const { id } = params;
     const data = await request.json();
-    await connectToDatabase();
-
-    const mosque = await MosqueModel.findByIdAndUpdate(
-      params.id,
-      { $set: data },
+    
+    await connectDB();
+    
+    const mosque = await Mosque.findByIdAndUpdate(
+      id,
+      { ...data, updatedAt: new Date() },
       { new: true, runValidators: true }
-    );
+    ).populate('imamId', 'name email');
 
     if (!mosque) {
       return NextResponse.json(
-        { error: "Mosque not found" },
+        { success: false, message: 'Mosque not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(mosque);
+    return NextResponse.json({
+      success: true,
+      data: mosque,
+      message: 'Mosque updated successfully',
+    });
   } catch (error) {
+    console.error('Error updating mosque:', error);
     return NextResponse.json(
-      { error: `Failed to update mosque: ${error.message}` },
+      { success: false, message: 'Failed to update mosque', error: error.message },
       { status: 500 }
     );
   }
 }
 
-/**
- * DELETE handler for removing a mosque by ID
- */
 export async function DELETE(request, { params }) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    await connectToDatabase();
-    const mosque = await MosqueModel.findByIdAndDelete(params.id);
+    const { id } = params;
+    
+    await connectDB();
+    
+    const mosque = await Mosque.findByIdAndDelete(id);
 
     if (!mosque) {
       return NextResponse.json(
-        { error: "Mosque not found" },
+        { success: false, message: 'Mosque not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ message: "Mosque deleted successfully" });
+    return NextResponse.json({
+      success: true,
+      message: 'Mosque deleted successfully',
+    });
   } catch (error) {
+    console.error('Error deleting mosque:', error);
     return NextResponse.json(
-      { error: "Failed to delete mosque" },
+      { success: false, message: 'Failed to delete mosque', error: error.message },
       { status: 500 }
     );
   }

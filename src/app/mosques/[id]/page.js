@@ -1,9 +1,15 @@
+"use client";
+
 import Link from 'next/link';
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { connectToDatabase } from '@/lib/db';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
 // Hardcoded mosque data for specific IDs
 const KNOWN_MOSQUES = {
@@ -69,71 +75,126 @@ const DEFAULT_MOSQUE = {
   imageUrl: "https://images.unsplash.com/photo-1603595829982-373ac028bc99?q=80&w=1000&auto=format&fit=crop"
 };
 
-// This function gets mosque data with a guaranteed fallback
-async function getMosqueData(id) {
-  console.log(`Attempting to fetch mosque with ID: ${id}`);
+export default function MosquePage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const { toast } = useToast();
+  
+  const [mosque, setMosque] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const id = params?.id;
 
-  // First, check if this is a known mosque ID
-  if (KNOWN_MOSQUES[id]) {
-    console.log(`Using known mosque data for ID: ${id}`);
-    return KNOWN_MOSQUES[id];
-  }
-
-  try {
-    // Validate ID format
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-      console.error("Invalid MongoDB ID format:", id);
-      // Return default mosque with the requested ID
-      return { ...DEFAULT_MOSQUE, _id: id };
-    }
-
-    // Try to load the mosque from the database
+  // Fetch mosque data function
+  const fetchMosqueData = async (mosqueId) => {
     try {
-      // Dynamically import the Mosque model to handle SSR better
-      const { default: Mosque } = await import('@/models/Mosque');
+      console.log(`Attempting to fetch mosque with ID: ${mosqueId}`);
 
-      const dbResult = await connectToDatabase();
-      if (dbResult.error) {
-        console.error(`Database connection error: ${dbResult.message}`);
-        return { ...DEFAULT_MOSQUE, _id: id };
+      // First try to get from API
+      const response = await fetch(`/api/mosques/${mosqueId}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          console.log(`Successfully loaded mosque from API: ${data.data.name}`);
+          return data.data;
+        }
       }
-
-      console.log('Database connected, querying for mosque');
-      const mosque = await Mosque.findById(id).populate('imamId', 'name email').lean();
-
-      if (!mosque) {
-        console.log(`No mosque found with ID: ${id}`);
-        return { ...DEFAULT_MOSQUE, _id: id };
+      
+      // Fallback to known mosques
+      if (KNOWN_MOSQUES[mosqueId]) {
+        console.log(`Using known mosque data for ID: ${mosqueId}`);
+        return KNOWN_MOSQUES[mosqueId];
       }
-
-      console.log(`Successfully retrieved mosque: ${mosque.name}`);
-
-      // Process the mosque data
-      return {
-        ...mosque,
-        _id: mosque._id.toString(),
-        imamId: mosque.imamId ? {
-          ...mosque.imamId,
-          _id: mosque.imamId._id.toString()
-        } : null,
-        createdAt: mosque.createdAt?.toISOString(),
-        updatedAt: mosque.updatedAt?.toISOString(),
-      };
-    } catch (err) {
-      console.error("Error loading mosque from database:", err);
-      return { ...DEFAULT_MOSQUE, _id: id };
+      
+      // Final fallback
+      console.warn(`No mosque found with ID: ${mosqueId}, using default`);
+      return { ...DEFAULT_MOSQUE, _id: mosqueId };
+      
+    } catch (error) {
+      console.error('Error fetching mosque data:', error);
+      return { ...DEFAULT_MOSQUE, _id: mosqueId };
     }
-  } catch (error) {
-    console.error(`Unexpected error:`, error);
-    return { ...DEFAULT_MOSQUE, _id: id };
+  };
+
+  // Load mosque data on component mount
+  useEffect(() => {
+    if (id) {
+      console.log(`Rendering mosque page for ID: ${id}`);
+      fetchMosqueData(id).then(mosqueData => {
+        setMosque(mosqueData);
+        setLoading(false);
+      });
+    } else {
+      setLoading(false);
+    }
+  }, [id]);
+
+  // Handle volunteer success message
+  useEffect(() => {
+    if (searchParams.get('volunteered') === 'true') {
+      toast({
+        title: "Success!",
+        description: "Your volunteer registration has been submitted successfully! The mosque will contact you soon.",
+      });
+    }
+  }, [searchParams, toast]);
+
+  // Debug session
+  useEffect(() => {
+    console.log('Session status:', status);
+    console.log('Session data:', session);
+  }, [session, status]);
+
+  // Handle volunteer button click
+  const handleVolunteerClick = () => {
+    if (status === 'loading') {
+      return;
+    }
+    
+    if (!session) {
+      router.push(`/login?callbackUrl=/mosques/${id}`);
+      return;
+    }
+    
+    if (session.user.role !== 'user') {
+      toast({
+        title: "Access Restricted",
+        description: "Only community members can volunteer. Please register with a community member account.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    router.push(`/volunteers/register-for-mosque?mosque=${id}&name=${encodeURIComponent(mosque?.name || 'Mosque')}`);
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="container mx-auto py-12 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center">Loading mosque information...</div>
+        </div>
+      </div>
+    );
   }
-}
 
-export default async function MosquePage({ params }) {
-  console.log(`Rendering mosque page for ID: ${params.id}`);
-
-  // Always get a mosque (either real or fallback)
-  const mosque = await getMosqueData(params.id);
+  // No mosque found
+  if (!mosque) {
+    return (
+      <div className="container mx-auto py-12 px-4">
+        <div className="max-w-4xl mx-auto">
+          <Alert>
+            <AlertDescription>
+              Mosque not found. <Link href="/mosques" className="text-blue-600 hover:underline">Browse all mosques</Link>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
 
   // Format facility features for better display
   const formattedFeatures = mosque.facilityFeatures?.map(feature =>
@@ -145,20 +206,48 @@ export default async function MosquePage({ params }) {
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">{mosque.name}</h1>
-          <Link href="/mosques">
-            <Button variant="outline">Back to Mosques</Button>
-          </Link>
+          <div className="flex gap-4">
+            <Button 
+              onClick={handleVolunteerClick}
+              className="bg-green-600 hover:bg-green-700"
+              disabled={status === 'loading'}
+            >
+              {status === 'loading' ? 'Loading...' : 
+               !session ? 'Login to Volunteer' : 
+               session.user.role !== 'user' ? 'Volunteers Only' : 
+               `Volunteer at ${mosque.name}`}
+            </Button>
+            <Link href="/mosques">
+              <Button variant="outline">Back to Mosques</Button>
+            </Link>
+          </div>
         </div>
+
+        {/* Show session info for debugging */}
+        {session && (
+          <Alert className="mb-6 bg-green-50 border-green-200">
+            <AlertDescription>
+              Logged in as: {session.user.email} ({session.user.role})
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!session && (
+          <Alert className="mb-6 bg-blue-50 border-blue-200">
+            <AlertDescription>
+              <Link href="/login" className="text-blue-600 hover:underline">Login</Link> to volunteer at this mosque
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div className="md:col-span-2">
             {mosque.imageUrl ? (
               <div className="relative h-[300px] w-full rounded-lg overflow-hidden">
-                <Image
+                <img
                   src={mosque.imageUrl}
                   alt={mosque.name}
-                  fill
-                  className="object-cover"
+                  className="w-full h-full object-cover"
                 />
               </div>
             ) : (

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
-import Mosque from '@/models/Mosque';
+import connectDB from '@/lib/db';
+import { Mosque } from '@/models/Mosque';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import authConfig from '@/app/api/auth/[...nextauth]/config';
 import { z } from 'zod';
 
 // Validation schema for creating a mosque
@@ -28,7 +28,7 @@ const mosqueSchema = z.object({
 // GET all mosques or filter by query parameters
 export async function GET(request) {
   try {
-    await connectToDatabase();
+    await connectDB();
 
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
@@ -44,7 +44,7 @@ export async function GET(request) {
     };
 
     // If admin or imam user is authenticated, allow them to see all mosques
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authConfig);
     if (session && (session.user.role === 'admin' || session.user.role === 'imam')) {
       // For admins and imams, allow seeing all mosques based on optional status filter
       const statusFilter = searchParams.get('status');
@@ -77,7 +77,8 @@ export async function GET(request) {
     const total = await Mosque.countDocuments(filter);
 
     return NextResponse.json({
-      mosques,
+      success: true,
+      data: mosques,
       pagination: {
         total,
         page,
@@ -88,7 +89,7 @@ export async function GET(request) {
   } catch (error) {
     console.error('Error fetching mosques:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch mosques' },
+      { success: false, error: 'Failed to fetch mosques', message: error.message },
       { status: 500 }
     );
   }
@@ -97,12 +98,12 @@ export async function GET(request) {
 // POST create a new mosque
 export async function POST(request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authConfig);
 
     // Check authentication
     if (!session) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: 'Unauthorized' },
         { status: 401 }
       );
     }
@@ -110,7 +111,7 @@ export async function POST(request) {
     // Only imams and admins can create mosques
     if (session.user.role !== 'imam' && session.user.role !== 'admin') {
       return NextResponse.json(
-        { error: 'Forbidden. Only imams and admins can create mosques.' },
+        { success: false, error: 'Forbidden. Only imams and admins can create mosques.' },
         { status: 403 }
       );
     }
@@ -121,30 +122,31 @@ export async function POST(request) {
     const result = mosqueSchema.safeParse(body);
     if (!result.success) {
       return NextResponse.json(
-        { error: 'Validation failed', details: result.error.issues },
+        { success: false, error: 'Validation failed', details: result.error.issues },
         { status: 400 }
       );
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Create new mosque
-    const mosque = new Mosque({
+    const mosque = await Mosque.create({
       ...result.data,
       imamId: session.user.id, // Set current user as imam
       verified: false, // New mosques need verification
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      status: 'pending', // Default status
       prayerTimes: body.prayerTimes || {}, // Handle prayer times if provided
     });
 
-    await mosque.save();
-
-    return NextResponse.json({ mosque }, { status: 201 });
+    return NextResponse.json({ 
+      success: true, 
+      data: mosque,
+      message: 'Mosque created successfully'
+    }, { status: 201 });
   } catch (error) {
     console.error('Error creating mosque:', error);
     return NextResponse.json(
-      { error: 'Failed to create mosque' },
+      { success: false, error: 'Failed to create mosque', message: error.message },
       { status: 500 }
     );
   }

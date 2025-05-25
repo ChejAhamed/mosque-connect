@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import connectDB from '@/lib/db';
 import User from '@/models/User';
 import Mosque from '@/models/Mosque';
 import Business from '@/models/Business';
@@ -29,7 +29,7 @@ export async function GET(request) {
       console.log('Admin stats accessed in development mode without authentication');
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Fetch real statistics from the database
     const stats = {
@@ -70,7 +70,7 @@ export async function GET(request) {
       console.log('Fetching admin dashboard statistics...');
 
       // Check database connection
-      const dbResult = await connectToDatabase();
+      const dbResult = await connectDB();
       if (dbResult.error) {
         console.error(`Failed to connect to database: ${dbResult.message}`);
         return getFallbackStats();

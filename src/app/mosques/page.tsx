@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
 import MosqueMap from "@/components/mosque/GoogleMap";
@@ -12,6 +15,7 @@ import { useSession } from "next-auth/react";
 import { Badge } from "@/components/ui/badge";
 import { MapPinIcon, PhoneIcon, MailIcon, Globe, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UserPlus } from 'lucide-react';
 
 // Define mosque interface
 interface Mosque {
@@ -36,6 +40,7 @@ interface Mosque {
   phone?: string;
   email?: string;
   website?: string;
+  verified?: boolean;
 }
 
 // Cities in UK for quick selection
@@ -54,11 +59,44 @@ export default function MosquesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const { toast } = useToast();
-  const { data: session } = useSession();
+  const router = useRouter();
+  const { data: session, status } = useSession();
+
+  // Debug session
+  useEffect(() => {
+    console.log('Session status:', status);
+    console.log('Session data:', session);
+    if (session?.user) {
+      console.log('User role:', session.user.role);
+      console.log('User email:', session.user.email);
+    }
+  }, [session, status]);
+
+  const handleVolunteerApplication = (mosqueId: string, mosqueName: string) => {
+    if (status === 'loading') {
+      return;
+    }
+    
+    if (!session) {
+      router.push(`/login?callbackUrl=/mosques`);
+      return;
+    }
+    
+    if (session.user.role !== 'user') {
+      toast({
+        title: "Access Restricted",
+        description: "Only community members can volunteer. Please register with a community member account.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    router.push(`/volunteers/register-for-mosque?mosque=${mosqueId}&name=${encodeURIComponent(mosqueName)}`);
+  };
 
   // Create sample mosques if none are found (for demo)
   const createSampleMosques = async () => {
-    if (mosques.length === 0 && (session?.user?.role === 'admin' || session?.user?.role === 'imam')) {
+    if (mosques.length === 0 && session?.user && (session.user.role === 'admin' || session.user.role === 'imam')) {
       const sampleMosques = [
         {
           name: "East London Mosque",
@@ -91,6 +129,22 @@ export default function MosquesPage() {
           }
         },
         {
+          name: "NOOOR Mosque",
+          description: "A vibrant community mosque with various facilities and programs.",
+          address: "London, Example Address",
+          city: "London",
+          state: "Greater London",
+          zipCode: "E1 2AB",
+          phone: "074385155555",
+          email: "mr@gmail.com",
+          website: "www.noooooor.org",
+          facilityFeatures: ["Prayer Hall", "Quran Classes", "Islamic Library"],
+          location: {
+            type: "Point",
+            coordinates: [-0.0758, 51.5074]
+          }
+        },
+        {
           name: "Birmingham Central Mosque",
           description: "One of the oldest and most iconic mosques in Birmingham, serving the local community since 1975.",
           address: "180 Belgrave Middleway",
@@ -118,6 +172,11 @@ export default function MosquesPage() {
         await fetchMosques();
       } catch (error) {
         console.error("Error creating sample mosques:", error);
+        toast({
+          title: "Error",
+          description: "Failed to create sample mosques.",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -151,28 +210,74 @@ export default function MosquesPage() {
   const fetchMosques = async () => {
     try {
       setLoading(true);
-      try {
-        const response = await axios.get('/api/mosques');
-        setMosques(response.data.mosques);
+      console.log('Fetching mosques...');
+      
+      const response = await axios.get('/api/mosques');
+      console.log('Mosques API response:', response.data);
+      
+      if (response.data.success && response.data.data) {
+        setMosques(response.data.data);
         setError("");
 
         // If no mosques are found and user is admin/imam, offer to create sample data
-        if (response.data.mosques.length === 0 && (session?.user?.role === 'admin' || session?.user?.role === 'imam')) {
+        if (response.data.data.length === 0 && session?.user && (session.user.role === 'admin' || session.user.role === 'imam')) {
           toast({
             title: "No Mosques Found",
             description: "No mosques have been registered yet. Sample data will be created for demonstration.",
           });
-          createSampleMosques();
+          await createSampleMosques();
         }
-      } catch (error: any) {
-        console.error('Failed to fetch mosque data:', error);
-        setError("Failed to load mosques. Please try again later.");
-        toast({
-          title: "Error",
-          description: error?.response?.data?.message || "Failed to load mosques. Please try again later.",
-          variant: "destructive",
-        });
+      } else {
+        console.error('Invalid API response format:', response.data);
+        setError("Failed to load mosques. Invalid response format.");
+        setMosques([]);
       }
+    } catch (error: any) {
+      console.error('Failed to fetch mosque data:', error);
+      setError("Failed to load mosques. Please try again later.");
+      
+      // Create demo data if not logged in or if API fails
+      if (!session) {
+        console.log('User not logged in, showing demo mosques');
+        const demoMosques: Mosque[] = [
+          {
+            _id: 'demo1',
+            name: 'NOOOR (Demo)',
+            description: 'Demo mosque - please login to see real data and volunteer',
+            address: 'London, Demo Address',
+            city: 'London',
+            state: 'UK',
+            zipCode: 'E1 1AA',
+            phone: '074385155555',
+            email: 'demo@mosque.com',
+            website: 'www.demo-mosque.org',
+            facilityFeatures: ['Prayer Hall', 'Quran Classes', 'Islamic Library'],
+            status: 'approved',
+            verified: false
+          },
+          {
+            _id: 'demo2',
+            name: 'Demo Central Mosque',
+            description: 'Demo mosque for testing - login to access real features',
+            address: '123 Demo Street',
+            city: 'Manchester',
+            state: 'UK',
+            zipCode: 'M1 1AA',
+            phone: '0161-123-4567',
+            facilityFeatures: ['Prayer Hall', 'Community Center'],
+            status: 'approved',
+            verified: false
+          }
+        ];
+        setMosques(demoMosques);
+        setError(""); // Clear error when showing demo data
+      }
+      
+      toast({
+        title: "Error",
+        description: error?.response?.data?.message || "Failed to load mosques. Please try again later.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -180,7 +285,7 @@ export default function MosquesPage() {
 
   useEffect(() => {
     fetchMosques();
-  }, [toast]);
+  }, [session]); // Re-fetch when session changes
 
   // Handle city selection
   const handleCitySelect = (city: string) => {
@@ -188,6 +293,35 @@ export default function MosquesPage() {
     setLocationFilter(city);
   };
 
+  // Show session info for debugging
+  const renderSessionInfo = () => {
+    if (status === 'loading') {
+      return (
+        <Alert className="mb-6 bg-blue-50 border-blue-200">
+          <AlertDescription>Loading session...</AlertDescription>
+        </Alert>
+      );
+    }
+    
+    if (session) {
+      return (
+        <Alert className="mb-6 bg-green-50 border-green-200">
+          <AlertDescription>
+            Logged in as: {session.user.email} ({session.user.role})
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    
+    return (
+      <Alert className="mb-6 bg-yellow-50 border-yellow-200">
+        <AlertDescription>
+          <Link href="/login" className="text-blue-600 hover:underline">Login</Link> to volunteer at mosques or register as an imam to add your mosque
+        </AlertDescription>
+      </Alert>
+    );
+  };
+  
   return (
     <div className="container mx-auto py-12 px-4">
       <div className="text-center mb-12">
@@ -206,6 +340,9 @@ export default function MosquesPage() {
           )}
         </div>
       </div>
+
+      {/* Session Info */}
+      {renderSessionInfo()}
 
       {/* Search and filters */}
       <div className="mb-8 space-y-4">
@@ -309,18 +446,18 @@ export default function MosquesPage() {
         </div>
       )}
 
-      {/* Error state */}
-      {!loading && error && (
+      {/* Error state - only show if we have an error AND no mosques to display */}
+      {!loading && error && mosques.length === 0 && (
         <div className="text-center py-12">
           <p className="text-red-500 mb-4">{error}</p>
-          <Button onClick={() => window.location.reload()} variant="outline">
+          <Button onClick={fetchMosques} variant="outline">
             Try Again
           </Button>
         </div>
       )}
 
       {/* Mosques grid */}
-      {!loading && !error && (
+      {!loading && mosques.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredMosques.map((mosque) => (
             <Card key={mosque._id} className="overflow-hidden hover:shadow-lg transition-shadow">
@@ -341,6 +478,11 @@ export default function MosquesPage() {
                   {mosque.verified && (
                     <div className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">
                       Verified
+                    </div>
+                  )}
+                  {mosque._id.startsWith('demo') && (
+                    <div className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
+                      Demo
                     </div>
                   )}
                 </div>
@@ -401,6 +543,24 @@ export default function MosquesPage() {
                   </div>
                 )}
 
+                {/* Volunteer Button */}
+                {!mosque._id.startsWith('demo') && (
+                  <div className="mb-4">
+                    <Button 
+                      onClick={() => handleVolunteerApplication(mosque._id, mosque.name)}
+                      className="w-full"
+                      variant="outline"
+                      disabled={status === 'loading'}
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      {status === 'loading' ? 'Loading...' : 
+                       !session ? 'Login to Volunteer' : 
+                       session.user.role !== 'user' ? 'Volunteers Only' : 
+                       `Volunteer at ${mosque.name}`}
+                    </Button>
+                  </div>
+                )}
+
                 <div className="flex justify-end">
                   <Link href={`/mosques/${mosque._id}`}>
                     <Button variant="outline" size="sm">
@@ -414,12 +574,31 @@ export default function MosquesPage() {
         </div>
       )}
 
-      {!loading && !error && filteredMosques.length === 0 && (
+      {!loading && !error && filteredMosques.length === 0 && mosques.length > 0 && (
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium mb-2">No mosques match your filters</h3>
+          <p className="text-gray-600 mb-4">
+            Try adjusting your search filters to see more results.
+          </p>
+          <Button onClick={() => {
+            setSearchTerm("");
+            setLocationFilter("");
+            setSelectedCity("");
+            setFeatureFilter("");
+          }} variant="outline">
+            Clear All Filters
+          </Button>
+        </div>
+      )}
+
+      {!loading && mosques.length === 0 && (
         <div className="text-center py-12">
           <h3 className="text-lg font-medium mb-2">No mosques found</h3>
           <p className="text-gray-600 mb-4">
-            Try adjusting your search filters or register a mosque if you are an
-            imam.
+            {session && (session.user.role === 'imam' || session.user.role === 'admin') 
+              ? "No mosques have been registered yet. Be the first to register your mosque!"
+              : "No mosques are available. Please check back later or contact us if you're an imam."
+            }
           </p>
           {session && (session.user.role === 'imam' || session.user.role === 'admin') && (
             <Link href="/mosques/register">

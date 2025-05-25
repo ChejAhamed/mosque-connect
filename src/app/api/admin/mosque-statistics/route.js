@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import  connectDB  from '@/lib/db';
 import Mosque from '@/models/Mosque';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -16,7 +16,7 @@ export async function GET(request) {
       );
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Get overall statistics
     const totalCount = await Mosque.countDocuments();

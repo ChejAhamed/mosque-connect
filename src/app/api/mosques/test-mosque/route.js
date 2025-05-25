@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import connectDB from '@/lib/db';
 import Mosque from '@/models/Mosque';
 
 export async function GET() {
   try {
-    await connectToDatabase();
+    await connectDB();
 
     // Try to get any existing mosque
     const mosque = await Mosque.findOne().lean();

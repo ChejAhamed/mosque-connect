@@ -1,5 +1,5 @@
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { connectToDatabase } from '@/lib/db';
+import connectDB from '@/lib/db';
 import { compare } from 'bcryptjs';
 import UserModel from '@/models/User';
 
@@ -27,7 +27,7 @@ export const authOptions = {
 
         try {
           // Connect to the database
-          await connectToDatabase();
+          await connectDB();
 
           // Find the user in the database
           const user = await UserModel.findOne({ email: credentials.email });

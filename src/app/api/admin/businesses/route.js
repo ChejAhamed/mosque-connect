@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import connectDB from '@/lib/db';
 import Business from '@/models/Business';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -17,7 +17,7 @@ export async function GET(request) {
       );
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Fetch businesses with optional filtering
     const searchParams = request.nextUrl.searchParams;

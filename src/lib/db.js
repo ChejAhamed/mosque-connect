@@ -1,43 +1,41 @@
 import mongoose from 'mongoose';
 
-// Global variable to cache the database connection
-let cachedDb = null;
+const MONGODB_URI = process.env.MONGODB_URI;
 
-export async function connectToDatabase() {
-  if (cachedDb) {
-    return { db: cachedDb, mongoose };
+if (!MONGODB_URI) {
+  throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
+}
+
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+async function connectDB() {
+  if (cached.conn) {
+    return cached.conn;
   }
 
-  // Use MongoDB connection string from environment variables
-  // Check for both DATABASE_URI (primary) and MONGODB_URI (fallback) for compatibility
-  const dbUri = process.env.DATABASE_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/mosque-connect';
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false,
+    };
 
-  if (!dbUri) {
-    throw new Error('Please define the DATABASE_URI environment variable');
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      return mongoose;
+    });
   }
 
   try {
-    const conn = await mongoose.connect(dbUri);
-    cachedDb = conn.connection;
-
-    // Handle connection events
-    mongoose.connection.on('connected', () => {
-      console.log('MongoDB connected successfully');
-    });
-
-    mongoose.connection.on('error', (err) => {
-      console.log('MongoDB connection error: ', err);
-    });
-
-    return { db: cachedDb, mongoose };
-  } catch (error) {
-    console.error('Failed to connect to MongoDB', error);
-    // Instead of throwing error, return a flag indicating connection failed
-    // This allows the application to continue running even if DB connection fails
-    return { error: true, message: error.message };
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
   }
+
+  return cached.conn;
 }
 
-// Export connectToDatabase as both named and default export
-const dbConnect = connectToDatabase;
-export default dbConnect;
+export { connectDB };
+export default connectDB;

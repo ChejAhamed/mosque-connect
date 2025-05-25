@@ -1,4 +1,4 @@
-import { connectToDatabase } from '../src/lib/db.js';
+import connectDB from '../src/lib/db.js';
 import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -206,7 +206,7 @@ async function seedMosques() {
 
   try {
     // Connect to database
-    const { db, error } = await connectToDatabase();
+    const { db, error } = await connectDB();
 
     if (error) {
       console.error('Failed to connect to database:', error);

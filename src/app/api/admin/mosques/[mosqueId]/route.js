@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import connectDB from '@/lib/db';
 import Mosque from '@/models/Mosque';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -37,7 +37,7 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Find and update the mosque
     const mosque = await Mosque.findById(mosqueId);
@@ -99,7 +99,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Find the mosque with populated imam data
     const mosque = await Mosque.findById(mosqueId)

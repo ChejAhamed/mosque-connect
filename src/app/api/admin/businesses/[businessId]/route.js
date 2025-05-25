@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import connectDB from '@/lib/db';
 import Business from '@/models/Business';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -37,7 +37,7 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Find and update the business
     const business = await Business.findById(businessId);
@@ -99,7 +99,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    await connectToDatabase();
+    await connectDB();
 
     // Find the business with populated owner data
     const business = await Business.findById(businessId)

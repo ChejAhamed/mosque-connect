@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/config';
+import { authConfig } from '../../auth/[...nextauth]/config';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
 
@@ -8,7 +8,7 @@ export async function GET(request) {
   try {
     console.log('=== DEBUG: Users API called ===');
     
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authConfig);
     console.log('Full session object:', JSON.stringify(session, null, 2));
     
     if (!session) {

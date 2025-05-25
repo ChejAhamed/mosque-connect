@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
+import connectDB from '@/lib/db';
 import UserModel from '@/models/User';
 import VolunteerModel from '@/models/Volunteer';
 import { getServerSession } from 'next-auth';
@@ -44,7 +44,7 @@ export async function POST(req) {
     }
 
     // Connect to the database
-    await connectToDatabase();
+    await connectDB();
 
     // Get the user from the database
     const user = await UserModel.findById(session.user.id);
