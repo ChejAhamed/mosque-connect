@@ -12,17 +12,6 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import {
-  User,
-  Settings,
-  Shield,
-  Building,
-  Store,
-  Users,
-  HelpCircle,
-  LogOut,
-  LayoutDashboard
-} from 'lucide-react';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -32,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function Navbar() {
   const { data: session, status } = useSession();
@@ -85,41 +75,41 @@ export function Navbar() {
     const role = session.user?.role;
 
     if (role === "admin") {
-      return { href: "/admin/unified-dashboard", label: "Admin Dashboard" };
+      return { href: "/admin/dashboard", label: "🔧 Admin Dashboard" };
     } else if (role === "imam") {
       return { href: "/dashboard/imam", label: "Imam Dashboard" };
     } else if (role === "business") {
       return { href: "/dashboard/business", label: "Business Dashboard" };
+    } else {
+      // Regular users get volunteer dashboard
+      return { href: "/dashboard/volunteer", label: "Volunteer Dashboard" };
     }
-
-    return null;
   };
 
   // Get any special actions based on user role
   const getSpecialActions = () => {
-    if (!session) return [];
-
-    const role = session.user?.role;
+    const role = session?.user?.role;
     const actions = [];
 
-    if (role === "imam" || role === "admin") {
-      actions.push({ href: "/mosques/register", label: "Register Mosque" });
+    // All authenticated users can access volunteer dashboard
+    if (session) {
+      actions.push({ href: "/dashboard/volunteer", label: "🤝 Volunteer Dashboard" });
     }
 
-    // Add management links for admins
+    if (role === "imam" || role === "admin") {
+      actions.push({ href: "/dashboard/imam", label: "Imam Dashboard" });
+    }
+
     if (role === "admin") {
-      actions.push({ href: "/admin/unified-dashboard", label: "Approval Dashboard" });
-      actions.push({ href: "/admin/dashboard", label: "Dashboard" });
+      actions.push({ href: "/admin/dashboard", label: "🔧 Admin Dashboard" });
       actions.push({ href: "/admin/mosques", label: "Manage Mosques" });
+      actions.push({ href: "/admin/businesses", label: "Manage Businesses" });
+      actions.push({ href: "/admin/volunteers", label: "Manage Volunteers" });
+      actions.push({ href: "/admin/users", label: "Manage Users" });
+      actions.push({ href: "/admin/analytics", label: "Analytics & Reports" });
     }
 
     if (role === "business" || role === "admin") {
-      actions.push({ href: "/dashboard/business/products", label: "Manage Products" });
-      actions.push({ href: "/dashboard/business/announcements", label: "Manage Announcements" });
-    }
-
-     if (role === "business") {
-      actions.push({ href: "/dashboard/business/products", label: "Manage Products" });
       actions.push({ href: "/dashboard/business/announcements", label: "Manage Announcements" });
     }
 
@@ -147,25 +137,44 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-           <NavigationMenu>
-                <NavigationMenuList>
-                  {navLinks
-                    .filter((link) => link.showAlways || session)
-                    .map((link) => (
-                      <NavigationMenuItem key={link.href}>
+            <NavigationMenu>
+              <NavigationMenuList>
+                {navLinks
+                  .filter((link) => link.showAlways || session)
+                  .map((link) => (
+                    <NavigationMenuItem key={link.href}>
+                      <Link href={link.href} legacyBehavior passHref>
                         <NavigationMenuLink
-                          href={link.href}
-                          className={navigationMenuTriggerStyle()}
-                          active={pathname === link.href}
+                          className={cn(
+                            navigationMenuTriggerStyle(),
+                            pathname === link.href && "bg-accent text-accent-foreground"
+                          )}
                         >
                           {link.label}
                         </NavigationMenuLink>
-                      </NavigationMenuItem>
-                    ))}
-                </NavigationMenuList>
-              </NavigationMenu>
+                      </Link>
+                    </NavigationMenuItem>
+                  ))}
+                {/* Prominent Admin Dashboard link for admin users */}
+                {session?.user?.role === "admin" && (
+                  <NavigationMenuItem>
+                    <Link href="/admin/dashboard" legacyBehavior passHref>
+                      <NavigationMenuLink
+                        className={cn(
+                          navigationMenuTriggerStyle(),
+                          "text-red-600 font-bold",
+                          pathname === "/admin/dashboard" && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        🔧 Admin Dashboard
+                      </NavigationMenuLink>
+                    </Link>
+                  </NavigationMenuItem>
+                )}
+              </NavigationMenuList>
+            </NavigationMenu>
 
-           {/* User Menu or Auth Buttons */}
+            {/* User Menu or Auth Buttons */}
             <div className="ml-4">
               {status === "authenticated" ? (
                 <DropdownMenu>
@@ -180,90 +189,46 @@ export function Navbar() {
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuContent align="end">
                     <div className="flex items-center justify-start gap-2 p-2">
                       <div className="flex flex-col space-y-0.5 leading-none">
                         <p className="font-medium text-sm">{displayName}</p>
                         <p className="text-xs text-gray-500">
                           {session.user.email}
                         </p>
-                        <p className="text-xs text-blue-600 capitalize">
-                          {session.user.role || 'user'}
-                        </p>
                       </div>
                     </div>
                     <DropdownMenuSeparator />
 
-                    {/* Profile & Settings Section */}
-                    <DropdownMenuItem asChild>
-                      <Link href="/profile" className="flex items-center">
-                        <User className="mr-2 h-4 w-4" />
-                        <span>Profile</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    
-                    <DropdownMenuItem asChild>
-                      <Link href="/settings" className="flex items-center">
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>Settings</span>
-                      </Link>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator />
-
-                    {/* Dashboard Links */}
                     {dashboardLink && (
                       <DropdownMenuItem asChild>
-                        <Link href={dashboardLink.href} className="flex items-center">
-                          <LayoutDashboard className="mr-2 h-4 w-4" />
-                          <span>{dashboardLink.label}</span>
-                        </Link>
+                        <Link href={dashboardLink.href}>{dashboardLink.label}</Link>
                       </DropdownMenuItem>
                     )}
 
-                    {/* Admin Links */}
                     {specialActions.map((action, index) => (
                       <DropdownMenuItem key={index} asChild>
-                        <Link href={action.href} className="flex items-center">
-                          {action.href.includes('admin') && <Shield className="mr-2 h-4 w-4" />}
-                          {action.href.includes('mosque') && <Building className="mr-2 h-4 w-4" />}
-                          {action.href.includes('business') && <Store className="mr-2 h-4 w-4" />}
-                          {action.href.includes('volunteer') && <Users className="mr-2 h-4 w-4" />}
-                          <span>{action.label}</span>
-                        </Link>
+                        <Link href={action.href}>{action.label}</Link>
                       </DropdownMenuItem>
                     ))}
 
                     <DropdownMenuSeparator />
-                    
-                    {/* Help & Support */}
-                    <DropdownMenuItem asChild>
-                      <Link href="/help" className="flex items-center">
-                        <HelpCircle className="mr-2 h-4 w-4" />
-                        <span>Help & Support</span>
-                      </Link>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator />
-                    
-                    {/* Logout */}
                     <DropdownMenuItem
                       onClick={() => signOut({ callbackUrl: "/" })}
-                      className="text-red-600 focus:text-red-600"
                     >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Log Out</span>
+                      Log Out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                // Login buttons for unauthenticated users
                 <div className="flex space-x-2">
                   <Link href="/login">
-                    <Button variant="ghost">Log In</Button>
+                    <Button variant="outline" size="sm">
+                      Log In
+                    </Button>
                   </Link>
                   <Link href="/register">
-                    <Button>Sign Up</Button>
+                    <Button size="sm">Register</Button>
                   </Link>
                 </div>
               )}
@@ -297,53 +262,76 @@ export function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`px-3 py-2 text-gray-700 rounded-md ${
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       pathname === link.href
-                        ? "bg-gray-100 font-medium"
-                        : "hover:bg-gray-50"
+                        ? "bg-green-100 text-green-700"
+                        : "text-gray-700 hover:bg-gray-100"
                     }`}
                   >
                     {link.label}
                   </Link>
                 ))}
 
-              {dashboardLink && (
-                <Link
-                  href={dashboardLink.href}
-                  className="px-3 py-2 text-gray-700 rounded-md hover:bg-gray-50"
-                >
-                  {dashboardLink.label}
-                </Link>
+              {/* Mobile Dashboard Links */}
+              {session && (
+                <>
+                  <div className="border-t pt-3 mt-3">
+                    <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Dashboard
+                    </p>
+                  </div>
+                  {dashboardLink && (
+                    <Link
+                      href={dashboardLink.href}
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        pathname === dashboardLink.href
+                          ? "bg-green-100 text-green-700"
+                          : "text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      {dashboardLink.label}
+                    </Link>
+                  )}
+                  {specialActions.map((action, index) => (
+                    <Link
+                      key={index}
+                      href={action.href}
+                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        pathname === action.href
+                          ? "bg-green-100 text-green-700"
+                          : "text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      {action.label}
+                    </Link>
+                  ))}
+                </>
               )}
 
-              {specialActions.map((action, index) => (
-                <Link
-                  key={index}
-                  href={action.href}
-                  className="px-3 py-2 text-gray-700 rounded-md hover:bg-gray-50"
-                >
-                  {action.label}
-                </Link>
-              ))}
-
-              {status === "authenticated" ? (
-                <Button
-                  className="mt-2 w-full"
-                  variant="outline"
-                  onClick={() => signOut({ callbackUrl: "/" })}
-                >
-                  Log Out
-                </Button>
-              ) : (
-                <div className="flex flex-col space-y-2 pt-2">
-                  <Link href="/login" className="w-full">
+              {/* Mobile Auth Buttons */}
+              {status !== "authenticated" && (
+                <div className="border-t pt-3 mt-3 space-y-2">
+                  <Link href="/login">
                     <Button variant="outline" className="w-full">
                       Log In
                     </Button>
                   </Link>
-                  <Link href="/register" className="w-full">
+                  <Link href="/register">
                     <Button className="w-full">Register</Button>
                   </Link>
+                </div>
+              )}
+
+              {/* Mobile Sign Out */}
+              {status === "authenticated" && (
+                <div className="border-t pt-3 mt-3">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                  >
+                    Log Out
+                  </Button>
                 </div>
               )}
             </nav>
@@ -353,6 +341,3 @@ export function Navbar() {
     </header>
   );
 }
-
-// Export as default as well
-export default Navbar;
