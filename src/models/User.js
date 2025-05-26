@@ -42,6 +42,24 @@ const UserSchema = new Schema(
     city: {
       type: String,
     },
+    // Enhanced volunteer tracking
+    volunteerStats: {
+      totalApplications: {
+        type: Number,
+        default: 0,
+      },
+      acceptedApplications: {
+        type: Number,
+        default: 0,
+      },
+      activeOffers: {
+        type: Number,
+        default: 0,
+      },
+      lastVolunteerActivity: {
+        type: Date,
+      },
+    },
   },
   { timestamps: true }
 );

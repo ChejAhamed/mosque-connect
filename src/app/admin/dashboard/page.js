@@ -1,562 +1,714 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import axios from 'axios';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 import {
-  User, Users, Store, MapPin, ChevronUp, Activity,
-  BarChart, PieChart, Building, Award, CheckCircle, XCircle, Clock
-} from 'lucide-react';
-import { LoadingSpinner } from '@/components/ui/loading-states';
-import UserStatsCard from '@/components/admin/UserStatsCard';
-import UserManagementTable from '@/components/admin/UserManagementTable';
-
-// Initial stats structure
-const INITIAL_STATS = {
-  users: { total: 0, male: 0, female: 0, other: 0 },
-  imams: { total: 0, male: 0, female: 0 },
-  businesses: { total: 0, categories: [] },
-  volunteers: { total: 0 },
-  cities: { total: 0, top: [] },
-  mosques: { total: 0 },
-  halalCertifications: { total: 0, pending: 0, approved: 0, rejected: 0 }
-};
+  UsersIcon,
+  BuildingIcon,
+  ClipboardCheckIcon,
+  TrendingUpIcon,
+  EyeIcon,
+  MapPinIcon,
+  CalendarIcon,
+  AlertTriangleIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ClockIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  StoreIcon
+} from "lucide-react";
 
 export default function AdminDashboard() {
-  const router = useRouter();
   const { data: session, status } = useSession();
+  const router = useRouter();
   const { toast } = useToast();
-  const [stats, setStats] = useState(INITIAL_STATS);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
+  
+  // Overview stats
+  const [systemStats, setSystemStats] = useState({
+    totalUsers: 0,
+    totalMosques: 0,
+    totalBusinesses: 0,
+    pendingApprovals: 0
+  });
+  const [volunteerStats, setVolunteerStats] = useState({
+    applications: { total: 0, pending: 0, accepted: 0, rejected: 0 },
+    offers: { total: 0, active: 0, inactive: 0 },
+    topMosques: []
+  });
 
-  // Fetch dashboard statistics
+  // Users data
+  const [users, setUsers] = useState([]);
+  const [usersPagination, setUsersPagination] = useState({ current: 1, total: 1 });
+  const [usersFilters, setUsersFilters] = useState({ search: '', role: 'all', verified: 'all' });
+
+  // Volunteers data
+  const [volunteerApplications, setVolunteerApplications] = useState([]);
+  const [volunteerOffers, setVolunteerOffers] = useState([]);
+  const [volunteerPagination, setVolunteerPagination] = useState({ current: 1, total: 1 });
+
+  // Mosques data
+  const [mosques, setMosques] = useState([]);
+  const [mosquesPagination, setMosquesPagination] = useState({ current: 1, total: 1 });
+
+  // Businesses data
+  const [businesses, setBusinesses] = useState([]);
+  const [businessesPagination, setBusinessesPagination] = useState({ current: 1, total: 1 });
+
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setIsLoading(true);
-
-        // Check if user is authenticated and is admin
-        if (status === 'unauthenticated') {
-          router.push('/login?callbackUrl=/admin/dashboard');
-          return;
-        }
-
-        if (status === 'authenticated' && session.user.role !== 'admin') {
-          router.push('/unauthorized');
-          return;
-        }
-
-        // Fetch real stats from API
-        const response = await axios.get('/api/admin/stats');
-        setStats(response.data.stats);
-      } catch (error) {
-        console.error('Failed to fetch dashboard stats:', error);
-
-        // If API fails, use fallback demo data
-        const demoStats = generateDemoStats();
-        setStats(demoStats);
-
-        toast({
-          title: 'Using Demo Data',
-          description: 'Showing sample data as we couldn\'t fetch real statistics',
-          variant: 'default'
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (status !== 'loading') {
-      fetchStats();
+    if (status === "unauthenticated") {
+      router.push("/login?callbackUrl=/admin/dashboard");
+      return;
     }
-  }, [toast, router, status, session]);
 
-  if (status === 'loading' || isLoading) {
-    return <LoadingSpinner message="Loading dashboard statistics..." />;
+    if (status === "authenticated" && !['admin', 'superadmin'].includes(session?.user?.role)) {
+      router.push("/unauthorized");
+      return;
+    }
+
+    if (status === "authenticated") {
+      fetchOverviewData();
+    }
+  }, [session, status, router]);
+
+  // API call helper
+  const apiCall = async (url, options = {}) => {
+    try {
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        ...options
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error(`API call failed for ${url}:`, error);
+      throw error;
+    }
+  };
+
+  // Fetch overview data
+  const fetchOverviewData = async () => {
+    try {
+      setLoading(true);
+      
+      const [userStats, mosquesData, businessesData, volunteerStatsData] = await Promise.allSettled([
+        apiCall('/api/admin/users/stats'),
+        apiCall('/api/admin/mosques'),
+        apiCall('/api/admin/businesses'),
+        apiCall('/api/admin/volunteers?type=stats')
+      ]);
+
+      // Process user stats
+      if (userStats.status === 'fulfilled') {
+        setSystemStats(prev => ({ 
+          ...prev, 
+          totalUsers: userStats.value.total || 0 
+        }));
+      }
+
+      // Process mosques data
+      if (mosquesData.status === 'fulfilled') {
+        const mosques = mosquesData.value.mosques || mosquesData.value || [];
+        setSystemStats(prev => ({ 
+          ...prev, 
+          totalMosques: mosques.length,
+          pendingApprovals: prev.pendingApprovals + mosques.filter(m => m.status === 'pending').length
+        }));
+      }
+
+      // Process businesses data
+      if (businessesData.status === 'fulfilled') {
+        const businesses = businessesData.value.businesses || businessesData.value || [];
+        setSystemStats(prev => ({ 
+          ...prev, 
+          totalBusinesses: businesses.length,
+          pendingApprovals: prev.pendingApprovals + businesses.filter(b => b.status === 'pending').length
+        }));
+      }
+
+      // Process volunteer stats
+      if (volunteerStatsData.status === 'fulfilled') {
+        setVolunteerStats(volunteerStatsData.value.data?.stats || {
+          applications: { total: 0, pending: 0, accepted: 0, rejected: 0 },
+          offers: { total: 0, active: 0, inactive: 0 },
+          topMosques: []
+        });
+      }
+
+    } catch (error) {
+      console.error("Error fetching overview data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data. Please check your connection and try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch users
+  const fetchUsers = async (page = 1) => {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '20',
+        ...usersFilters
+      });
+
+      const data = await apiCall(`/api/admin/users?${params}`);
+      setUsers(data.users || []);
+      setUsersPagination(data.pagination || { current: 1, total: 1 });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch users",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Fetch volunteer applications
+  const fetchVolunteerData = async () => {
+    try {
+      const [applicationsData, offersData] = await Promise.allSettled([
+        apiCall('/api/admin/volunteers?type=applications&limit=20'),
+        apiCall('/api/admin/volunteers?type=offers&limit=20')
+      ]);
+
+      if (applicationsData.status === 'fulfilled') {
+        setVolunteerApplications(applicationsData.value.data?.applications || []);
+      }
+
+      if (offersData.status === 'fulfilled') {
+        setVolunteerOffers(offersData.value.data?.offers || []);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch volunteer data",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Fetch mosques
+  const fetchMosques = async (page = 1) => {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '20'
+      });
+
+      const data = await apiCall(`/api/admin/mosques?${params}`);
+      setMosques(data.mosques || data || []);
+      setMosquesPagination(data.pagination || { current: 1, total: 1 });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch mosques",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Fetch businesses
+  const fetchBusinesses = async (page = 1) => {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '20'
+      });
+
+      const data = await apiCall(`/api/admin/businesses?${params}`);
+      setBusinesses(data.businesses || data || []);
+      setBusinessesPagination(data.pagination || { current: 1, total: 1 });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch businesses",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Handle tab change
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    
+    switch (tab) {
+      case 'users':
+        fetchUsers();
+        break;
+      case 'volunteers':
+        fetchVolunteerData();
+        break;
+      case 'mosques':
+        fetchMosques();
+        break;
+      case 'businesses':
+        fetchBusinesses();
+        break;
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const statusMap = {
+      pending: "bg-yellow-100 text-yellow-800",
+      accepted: "bg-green-100 text-green-800",
+      approved: "bg-green-100 text-green-800",
+      rejected: "bg-red-100 text-red-800",
+      active: "bg-green-100 text-green-800",
+      inactive: "bg-gray-100 text-gray-800",
+      true: "bg-green-100 text-green-800",
+      false: "bg-red-100 text-red-800"
+    };
+    
+    return (
+      <Badge className={statusMap[status] || "bg-gray-100 text-gray-800"}>
+        {typeof status === 'boolean' ? (status ? 'Verified' : 'Unverified') : status}
+      </Badge>
+    );
+  };
+
+  if (status === "loading" || loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700"></div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => handleTabChange('users')}>
+            Manage Users
+          </Button>
+          <Button variant="outline" onClick={() => handleTabChange('volunteers')}>
+            Manage Volunteers
+          </Button>
+        </div>
+      </div>
 
-      <Tabs
-        defaultValue="overview"
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="space-y-6"
-      >
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="imams">Imams</TabsTrigger>
-          <TabsTrigger value="businesses">Businesses</TabsTrigger>
-          <TabsTrigger value="locations">Locations</TabsTrigger>
-        </TabsList>
+      {/* System Overview Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleTabChange('users')}>
+          <CardHeader className="bg-blue-50">
+            <CardTitle className="flex items-center">
+              <UsersIcon className="mr-2 h-5 w-5" />
+              Total Users
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <p className="text-3xl font-bold">{systemStats.totalUsers}</p>
+            <p className="text-gray-500 mt-2">Registered users</p>
+          </CardContent>
+        </Card>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-      
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleTabChange('mosques')}>
+          <CardHeader className="bg-green-50">
+            <CardTitle className="flex items-center">
+              <BuildingIcon className="mr-2 h-5 w-5" />
+              Total Mosques
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <p className="text-3xl font-bold">{systemStats.totalMosques}</p>
+            <p className="text-gray-500 mt-2">Registered mosques</p>
+          </CardContent>
+        </Card>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              title="Total Users"
-              value={stats.users.total}
-              description="Registered accounts"
-              icon={<Users className="h-8 w-8 text-blue-500" />}
-            />
-            <StatCard
-              title="Mosques"
-              value={stats.mosques.total}
-              description="Registered mosques"
-              icon={<Building className="h-8 w-8 text-green-600" />}
-            />
-            <StatCard
-              title="Businesses"
-              value={stats.businesses.total}
-              description="Registered businesses"
-              icon={<Store className="h-8 w-8 text-purple-600" />}
-            />
-            <StatCard
-              title="Volunteers"
-              value={stats.volunteers.total}
-              description="Active volunteers"
-              icon={<User className="h-8 w-8 text-orange-500" />}
-            />
-          </div>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleTabChange('businesses')}>
+          <CardHeader className="bg-purple-50">
+            <CardTitle className="flex items-center">
+              <StoreIcon className="mr-2 h-5 w-5" />
+              Total Businesses
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <p className="text-3xl font-bold">{systemStats.totalBusinesses}</p>
+            <p className="text-gray-500 mt-2">Registered businesses</p>
+          </CardContent>
+        </Card>
 
-          {/* Admin Tools Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            <Card className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Mosque Management</CardTitle>
-                <CardDescription>Manage mosque approval requests</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500 mb-4">
-                  Review and approve mosque registration requests from imams and administrators.
-                </p>
-                <div className="flex justify-end">
-                  <a href="/admin/mosques" className="text-green-600 hover:text-green-800 font-medium text-sm">
-                    Manage Mosques →
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardHeader className="bg-orange-50">
+            <CardTitle className="flex items-center">
+              <AlertTriangleIcon className="mr-2 h-5 w-5" />
+              Pending Approvals
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <p className="text-3xl font-bold">{systemStats.pendingApprovals}</p>
+            <p className="text-gray-500 mt-2">Require attention</p>
+          </CardContent>
+        </Card>
+      </div>
 
-            <Card className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Mosque Statistics</CardTitle>
-                <CardDescription>Analyze mosque data and trends</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500 mb-4">
-                  View detailed statistics and charts about mosques, their features, and geographic distribution.
-                </p>
-                <div className="flex justify-end">
-                  <a href="/admin/mosque-statistics" className="text-green-600 hover:text-green-800 font-medium text-sm">
-                    View Statistics →
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
+      {/* Volunteer Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleTabChange('volunteers')}>
+          <CardHeader className="bg-blue-50">
+            <CardTitle className="flex items-center">
+              <ClipboardCheckIcon className="mr-2 h-5 w-5" />
+              Volunteer Applications
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <p className="text-3xl font-bold">{volunteerStats.applications?.total || 0}</p>
+            <p className="text-gray-500 mt-2">Total applications</p>
+            <div className="flex items-center mt-3 gap-2 flex-wrap">
+              <Badge variant="outline" className="flex items-center">
+                <ClockIcon className="h-3 w-3 mr-1" />
+                {volunteerStats.applications?.pending || 0} Pending
+              </Badge>
+              <Badge variant="outline" className="flex items-center">
+                <CheckCircleIcon className="h-3 w-3 mr-1" />
+                {volunteerStats.applications?.accepted || 0} Accepted
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
 
-            <Card className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Mosque Map</CardTitle>
-                <CardDescription>Interactive mosque location map</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500 mb-4">
-                  Explore mosque locations on an interactive map with search and filtering capabilities.
-                </p>
-                <div className="flex justify-end">
-                  <a href="/admin/mosque-map" className="text-green-600 hover:text-green-800 font-medium text-sm">
-                    Open Map →
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleTabChange('volunteers')}>
+          <CardHeader className="bg-green-50">
+            <CardTitle className="flex items-center">
+              <EyeIcon className="mr-2 h-5 w-5" />
+              General Volunteer Offers
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <p className="text-3xl font-bold">{volunteerStats.offers?.total || 0}</p>
+            <p className="text-gray-500 mt-2">Total offers posted</p>
+            <div className="flex items-center mt-3 gap-2 flex-wrap">
+              <Badge variant="outline" className="flex items-center">
+                <CheckCircleIcon className="h-3 w-3 mr-1" />
+                {volunteerStats.offers?.active || 0} Active
+              </Badge>
+              <Badge variant="outline" className="flex items-center">
+                <XCircleIcon className="h-3 w-3 mr-1" />
+                {volunteerStats.offers?.inactive || 0} Inactive
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* NEW: User Management and Analytics Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* NEW: User Stats Card */}
-            <UserStatsCard />
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Halal Certifications</CardTitle>
-                <CardDescription>Status of certification requests</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="w-full max-w-md">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                    <StatCard
-                      title="Pending"
-                      value={stats.halalCertifications.pending}
-                      description="Awaiting review"
-                      icon={<Clock className="h-6 w-6 text-yellow-500" />}
-                      compact
-                    />
-                    <StatCard
-                      title="Approved"
-                      value={stats.halalCertifications.approved}
-                      description="Certified halal"
-                      icon={<CheckCircle className="h-6 w-6 text-green-500" />}
-                      compact
-                    />
+        <Card>
+          <CardHeader className="bg-purple-50">
+            <CardTitle className="flex items-center">
+              <TrendingUpIcon className="mr-2 h-5 w-5" />
+              Top Mosques by Applications
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {volunteerStats.topMosques?.length > 0 ? (
+              <div className="space-y-2">
+                {volunteerStats.topMosques.slice(0, 3).map((mosque, index) => (
+                  <div key={mosque._id} className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium text-sm">{index + 1}. {mosque.mosque?.name}</p>
+                      <p className="text-xs text-gray-500">{mosque.mosque?.address}</p>
+                    </div>
+                    <Badge variant="outline">{mosque.total} apps</Badge>
                   </div>
-
-                  <div className="flex flex-col space-y-4">
-                    <CertificationBar
-                      label="Pending"
-                      count={stats.halalCertifications.pending}
-                      total={stats.halalCertifications.total}
-                      color="bg-yellow-500"
-                      icon={<Clock className="h-4 w-4 mr-2 text-yellow-500" />}
-                    />
-                    <CertificationBar
-                      label="Approved"
-                      count={stats.halalCertifications.approved}
-                      total={stats.halalCertifications.total}
-                      color="bg-green-500"
-                      icon={<CheckCircle className="h-4 w-4 mr-2 text-green-500" />}
-                    />
-                    <CertificationBar
-                      label="Rejected"
-                      count={stats.halalCertifications.rejected}
-                      total={stats.halalCertifications.total}
-                      color="bg-red-500"
-                      icon={<XCircle className="h-4 w-4 mr-2 text-red-500" />}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Cities</CardTitle>
-                <CardDescription>{stats.cities.total} cities in total</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80 flex flex-col justify-between">
-                  <div className="space-y-4">
-                    {stats.cities.top.slice(0, 5).map((city, index) => (
-                      <CityBar
-                        key={city.name}
-                        name={city.name}
-                        count={city.count}
-                        rank={index + 1}
-                      />
-                    ))}
-                  </div>
-                  <div className="text-center mt-4">
-                    <button
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                      onClick={() => setActiveTab('locations')}
-                    >
-                      View all cities →
-                    </button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* NEW: Full-width User Management Table */}
-          <UserManagementTable onUserUpdated={() => window.location.reload()} />
-        </TabsContent>
-        </TabsContent>
-
-        {/* Users Tab */}
-        <TabsContent value="users" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard
-              title="Total Users"
-              value={stats.users.total}
-              description="Registered accounts"
-              icon={<Users className="h-8 w-8 text-blue-500" />}
-            />
-            <StatCard
-              title="Male Users"
-              value={stats.users.male}
-              description={`${Math.round(stats.users.male / stats.users.total * 100) || 0}% of users`}
-              icon={<User className="h-8 w-8 text-blue-600" />}
-            />
-            <StatCard
-              title="Female Users"
-              value={stats.users.female}
-              description={`${Math.round(stats.users.female / stats.users.total * 100) || 0}% of users`}
-              icon={<User className="h-8 w-8 text-pink-500" />}
-            />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>User Demographics</CardTitle>
-              <CardDescription>Detailed breakdown of user statistics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center p-12 text-gray-500">
-                <BarChart className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Detailed user analytics charts will be implemented here</p>
-                <p className="text-sm mt-2">Coming soon in the next update</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Imams Tab */}
-        <TabsContent value="imams" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard
-              title="Total Imams"
-              value={stats.imams.total}
-              description="Mosque representatives"
-              icon={<MapPin className="h-8 w-8 text-green-600" />}
-            />
-            <StatCard
-              title="Mosques"
-              value={stats.mosques.total}
-              description="Registered mosques"
-              icon={<Building className="h-8 w-8 text-green-700" />}
-            />
-            <StatCard
-              title="Imam-Mosque Ratio"
-              value={stats.mosques.total > 0 ? (stats.imams.total / stats.mosques.total).toFixed(2) : 0}
-              description="Imams per mosque"
-              icon={<Award className="h-8 w-8 text-green-500" />}
-            />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Mosque Distribution</CardTitle>
-              <CardDescription>Total mosques: {stats.mosques.total}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center p-12 text-gray-500">
-                <PieChart className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Mosque distribution charts will be implemented here</p>
-                <p className="text-sm mt-2">Coming soon in the next update</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Businesses Tab */}
-        <TabsContent value="businesses" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard
-              title="Total Businesses"
-              value={stats.businesses.total}
-              description="Registered businesses"
-              icon={<Store className="h-8 w-8 text-purple-600" />}
-            />
-            <StatCard
-              title="Business Categories"
-              value={stats.businesses.categories?.length || 0}
-              description="Different business types"
-              icon={<Activity className="h-8 w-8 text-purple-500" />}
-            />
-            <StatCard
-              title="Halal Certified"
-              value={stats.halalCertifications.approved}
-              description={`${Math.round((stats.halalCertifications.approved / stats.businesses.total) * 100) || 0}% of businesses`}
-              icon={<Award className="h-8 w-8 text-purple-500" />}
-            />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Business Analytics</CardTitle>
-              <CardDescription>Detailed breakdown of business statistics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center p-12 text-gray-500">
-                <BarChart className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Detailed business analytics will be implemented here</p>
-                <p className="text-sm mt-2">Coming soon in the next update</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Locations Tab */}
-        <TabsContent value="locations" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <StatCard
-              title="Total Cities"
-              value={stats.cities.total}
-              description="Cities with users"
-              icon={<MapPin className="h-8 w-8 text-red-500" />}
-            />
-            {stats.cities.top.length > 0 && (
-              <StatCard
-                title="Top City"
-                value={stats.cities.top[0]?.name || "None"}
-                description={`${stats.cities.top[0]?.count || 0} users`}
-                icon={<MapPin className="h-8 w-8 text-blue-500" />}
-              />
-            )}
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>City Distribution</CardTitle>
-              <CardDescription>Users per city</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                {stats.cities.top.map((city, index) => (
-                  <CityBar
-                    key={city.name}
-                    name={city.name}
-                    count={city.count}
-                    rank={index + 1}
-                  />
                 ))}
               </div>
+            ) : (
+              <p className="text-gray-500 text-sm">No data available</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-8">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="users">Users ({systemStats.totalUsers})</TabsTrigger>
+          <TabsTrigger value="volunteers">Volunteers</TabsTrigger>
+          <TabsTrigger value="mosques">Mosques ({systemStats.totalMosques})</TabsTrigger>
+          <TabsTrigger value="businesses">Businesses ({systemStats.totalBusinesses})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center text-sm">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                    <span>{systemStats.totalUsers} total users</span>
+                  </div>
+                  <div className="flex items-center text-sm">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span>{volunteerStats.applications?.pending || 0} pending volunteer applications</span>
+                  </div>
+                  <div className="flex items-center text-sm">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full mr-3"></div>
+                    <span>{systemStats.pendingApprovals} items need approval</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="users">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>All registered users on the platform</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {users.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No users found. Click "Load Users" to fetch data.</p>
+                  <Button onClick={() => fetchUsers()} className="mt-4">Load Users</Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {users.map(user => (
+                    <div key={user._id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold">{user.name}</h3>
+                          <p className="text-gray-600">{user.email}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          {getStatusBadge(user.role)}
+                          {getStatusBadge(user.isVerified)}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Location:</span>
+                          <p>{user.city || 'Not specified'}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Joined:</span>
+                          <p>{new Date(user.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Mosques:</span>
+                          <p>{user.totalMosques || 0}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="volunteers">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Volunteer Applications</CardTitle>
+                <CardDescription>Mosque-specific volunteer applications</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {volunteerApplications.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No volunteer applications found</p>
+                    <Button onClick={fetchVolunteerData} className="mt-4">Load Volunteer Data</Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {volunteerApplications.map(app => (
+                      <div key={app._id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 className="font-semibold">{app.userId?.name}</h3>
+                            <p className="text-gray-600">{app.title}</p>
+                          </div>
+                          {getStatusBadge(app.status)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <span className="font-medium">Mosque:</span>
+                            <p>{app.mosqueId?.name}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium">Category:</span>
+                            <p>{app.category}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium">Applied:</span>
+                            <p>{new Date(app.createdAt).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>General Volunteer Offers</CardTitle>
+                <CardDescription>Community members offering services</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {volunteerOffers.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No volunteer offers found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {volunteerOffers.map(offer => (
+                      <div key={offer._id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 className="font-semibold">{offer.userId?.name}</h3>
+                            <p className="text-gray-600">{offer.title}</p>
+                          </div>
+                          {getStatusBadge(offer.status)}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <span className="font-medium">Category:</span>
+                            <p>{offer.category}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium">Location:</span>
+                            <p>{offer.userId?.city}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium">Posted:</span>
+                            <p>{new Date(offer.createdAt).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="mosques">
+          <Card>
+            <CardHeader>
+              <CardTitle>Mosque Management</CardTitle>
+              <CardDescription>All registered mosques</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {mosques.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No mosques found</p>
+                  <Button onClick={() => fetchMosques()} className="mt-4">Load Mosques</Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {mosques.map(mosque => (
+                    <div key={mosque._id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold">{mosque.name}</h3>
+                          <p className="text-gray-600">{mosque.address}</p>
+                        </div>
+                        {getStatusBadge(mosque.status)}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">City:</span>
+                          <p>{mosque.city}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Capacity:</span>
+                          <p>{mosque.capacity || 'Not specified'}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Registered:</span>
+                          <p>{new Date(mosque.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="businesses">
+          <Card>
+            <CardHeader>
+              <CardTitle>Business Management</CardTitle>
+              <CardDescription>All registered businesses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {businesses.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No businesses found</p>
+                  <Button onClick={() => fetchBusinesses()} className="mt-4">Load Businesses</Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {businesses.map(business => (
+                    <div key={business._id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold">{business.name}</h3>
+                          <p className="text-gray-600">{business.address}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Badge variant="outline">{business.businessType}</Badge>
+                          {getStatusBadge(business.status)}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Owner:</span>
+                          <p>{business.owner}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">City:</span>
+                          <p>{business.city}</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Registered:</span>
+                          <p>{new Date(business.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-// Generate demo stats for fallback
-function generateDemoStats() {
-  return {
-    users: {
-      total: Math.floor(Math.random() * 2000) + 1000,
-      male: Math.floor(Math.random() * 800) + 400,
-      female: Math.floor(Math.random() * 800) + 400,
-      other: Math.floor(Math.random() * 50)
-    },
-    imams: {
-      total: Math.floor(Math.random() * 300) + 100,
-      male: Math.floor(Math.random() * 250) + 90,
-      female: Math.floor(Math.random() * 50) + 10
-    },
-    businesses: {
-      total: Math.floor(Math.random() * 500) + 200,
-      categories: ['Restaurant', 'Grocery', 'Butcher', 'Bakery', 'Clothing', 'Electronics', 'Services']
-    },
-    volunteers: {
-      total: Math.floor(Math.random() * 400) + 150
-    },
-    cities: {
-      total: Math.floor(Math.random() * 100) + 20,
-      top: [
-        { name: 'London', count: Math.floor(Math.random() * 500) + 300 },
-        { name: 'Birmingham', count: Math.floor(Math.random() * 300) + 200 },
-        { name: 'Manchester', count: Math.floor(Math.random() * 200) + 150 },
-        { name: 'Leeds', count: Math.floor(Math.random() * 150) + 100 },
-        { name: 'Glasgow', count: Math.floor(Math.random() * 100) + 80 },
-        { name: 'Liverpool', count: Math.floor(Math.random() * 90) + 70 },
-        { name: 'Edinburgh', count: Math.floor(Math.random() * 80) + 60 },
-        { name: 'Cardiff', count: Math.floor(Math.random() * 70) + 50 },
-        { name: 'Bristol', count: Math.floor(Math.random() * 60) + 40 },
-        { name: 'Newcastle', count: Math.floor(Math.random() * 50) + 30 },
-      ]
-    },
-    mosques: {
-      total: Math.floor(Math.random() * 800) + 400
-    },
-    halalCertifications: {
-      total: Math.floor(Math.random() * 250) + 100,
-      pending: Math.floor(Math.random() * 80) + 30,
-      approved: Math.floor(Math.random() * 120) + 50,
-      rejected: Math.floor(Math.random() * 30) + 10
-    }
-  };
-}
-
-// Stat Card Component
-function StatCard({ title, value, description, icon, trend, compact = false }) {
-  return (
-    <Card>
-      <CardContent className={compact ? "p-4" : "p-6"}>
-        <div className="flex justify-between items-start">
-          <div>
-            <p className={`${compact ? "text-xs" : "text-sm"} font-medium text-gray-500`}>{title}</p>
-            <h3 className={`${compact ? "text-xl" : "text-2xl"} font-bold mt-1`}>{typeof value === 'number' ? value.toLocaleString() : value}</h3>
-            <p className={`${compact ? "text-xs" : "text-xs"} text-gray-500 mt-1`}>{description}</p>
-          </div>
-          <div className="bg-gray-100 p-3 rounded-full">{icon}</div>
-        </div>
-
-        {trend !== undefined && (
-          <div className="mt-4 flex items-center">
-            <div className={`flex items-center ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {trend >= 0 ? (
-                <ChevronUp className="h-4 w-4 mr-1" />
-              ) : (
-                <ChevronUp className="h-4 w-4 mr-1 transform rotate-180" />
-              )}
-              <span className="text-sm font-medium">{Math.abs(trend)}%</span>
-            </div>
-            <span className="text-xs text-gray-500 ml-2">since last month</span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// Certification Distribution Bar Component
-function CertificationBar({ label, count, total, color, icon }) {
-  const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
-
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center">
-          {icon}
-          <span className="text-sm font-medium">{label}</span>
-        </div>
-        <div className="text-sm text-gray-500">
-          {count.toLocaleString()} ({percentage}%)
-        </div>
-      </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full ${color}`}
-          style={{ width: `${percentage}%` }}
-        ></div>
-      </div>
-    </div>
-  );
-}
-
-// City Bar Component
-function CityBar({ name, count, rank }) {
-  return (
-    <div className="flex items-center space-x-3">
-      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-        <span className="text-xs font-semibold text-gray-700">{rank}</span>
-      </div>
-      <div className="flex-grow">
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-sm font-medium">{name}</span>
-          <span className="text-xs text-gray-500">{count.toLocaleString()} users</span>
-        </div>
-        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-blue-500"
-            style={{ width: `${Math.min(100, count / 10)}%` }}
-          ></div>
-        </div>
-      </div>
     </div>
   );
 }

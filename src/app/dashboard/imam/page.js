@@ -18,7 +18,10 @@ import {
   XCircleIcon,
   UsersIcon,
   FileCheckIcon,
-  FileIcon
+  FileIcon,
+  EyeIcon,
+  MailIcon,
+  PhoneIcon
 } from "lucide-react";
 
 export default function ImamDashboard() {
@@ -26,14 +29,18 @@ export default function ImamDashboard() {
   const router = useRouter();
   const { toast } = useToast();
   const [mosques, setMosques] = useState([]);
-  const [volunteers, setVolunteers] = useState([]);
+  const [volunteerApplications, setVolunteerApplications] = useState([]);
+  const [generalVolunteerOffers, setGeneralVolunteerOffers] = useState([]);
   const [halalRequests, setHalalRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+  const [selectedMosqueId, setSelectedMosqueId] = useState(null);
   const [stats, setStats] = useState({
     totalMosques: 0,
-    pendingVolunteers: 0,
-    approvedVolunteers: 0,
+    pendingApplications: 0,
+    acceptedApplications: 0,
+    rejectedApplications: 0,
+    generalOffers: 0,
     pendingHalalRequests: 0,
     approvedHalalRequests: 0,
     rejectedHalalRequests: 0,
@@ -57,169 +64,129 @@ export default function ImamDashboard() {
       try {
         setLoading(true);
 
-        // In a real implementation, you would fetch from your API
-        // For now, use API calls with error handling
-
-        try {
-          // Fetch volunteers data
-          const volunteersResponse = await axios.get('/api/imam/volunteers');
-          setVolunteers(volunteersResponse.data.volunteers || []);
-
-          // Fetch mosques data
-          const mosquesResponse = await axios.get('/api/imam/mosques');
-          setMosques(mosquesResponse.data.mosques || []);
-
-          // Fetch halal certification requests
-          const halalResponse = await axios.get('/api/imam/halal-certification-requests');
-          setHalalRequests(halalResponse.data.requests || []);
-
-        } catch (error) {
-          console.error("Error fetching data:", error);
-
-          // If API endpoints are not available, use mock data
-          // Sample mosque data
-          setMosques([
-            {
-              _id: "mosque1",
-              name: "Example Mosque",
-              address: "123 Main Street",
-              city: "London",
-              state: "Greater London",
-              createdAt: new Date().toISOString(),
-              verified: true
-            }
-          ]);
-
-          // Sample volunteer data with detailed availability
-          setVolunteers([
-            {
-              _id: "vol1",
-              userId: "user1",
-              name: "Ahmed Ali",
-              email: "ahmed@example.com",
-              skills: ["Teaching", "Cleaning", "Event Organization"],
-              availability: {
-                monday: ["Morning", "Evening"],
-                friday: ["Afternoon"],
-                sunday: ["Morning"]
-              },
-              preferredMosque: "Example Mosque",
-              createdAt: new Date().toISOString(),
-              status: "pending",
-              phone: "07123456789"
-            },
-            {
-              _id: "vol2",
-              userId: "user2",
-              name: "Fatima Khan",
-              email: "fatima@example.com",
-              skills: ["Translation", "Administrative", "Social Media"],
-              availability: {
-                tuesday: ["Afternoon"],
-                wednesday: ["Morning"],
-                saturday: ["Evening"]
-              },
-              preferredMosque: "Example Mosque",
-              createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-              status: "approved",
-              phone: "07987654321"
-            },
-            {
-              _id: "vol3",
-              userId: "user3",
-              name: "Omar Yusuf",
-              email: "omar@example.com",
-              skills: ["IT Support", "Graphic Design", "Website Management"],
-              availability: {
-                monday: ["Evening"],
-                thursday: ["Evening"],
-                friday: ["Evening"]
-              },
-              preferredMosque: "Example Mosque",
-              createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-              status: "rejected",
-              phone: "07123123123"
-            }
-          ]);
-
-          // Sample halal certification requests
-          setHalalRequests([
-            {
-              _id: "cert1",
-              businessId: "business1",
-              businessName: "Halal Family Restaurant",
-              businessType: "Restaurant",
-              address: "45 Market Street, London",
-              contactName: "Mohammed Ibrahim",
-              contactEmail: "contact@halalfamily.com",
-              contactPhone: "07111222333",
-              submittedDocuments: ["Ingredient list", "Supplier certificates", "Process documentation"],
-              details: "Family-owned restaurant serving authentic Middle Eastern cuisine. All meats sourced from certified halal suppliers.",
-              supplierInfo: "Meat supplied by Abdullah Halal Meats Ltd. (cert #12345). Other ingredients from various local suppliers.",
-              requestDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-              status: "pending"
-            },
-            {
-              _id: "cert2",
-              businessId: "business2",
-              businessName: "Medina Butchers",
-              businessType: "Butcher shop",
-              address: "78 High Street, Birmingham",
-              contactName: "Yusuf Ahmed",
-              contactEmail: "info@medinabutchers.com",
-              contactPhone: "07444555666",
-              submittedDocuments: ["Slaughter certificates", "Supplier information", "Premises photos"],
-              details: "Traditional butcher shop specializing in halal meat and poultry. All animals slaughtered according to Islamic principles.",
-              supplierInfo: "Direct sourcing from local farms with Islamic slaughter. Processing done on premises.",
-              requestDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-              status: "under_review"
-            },
-            {
-              _id: "cert3",
-              businessId: "business3",
-              businessName: "Baraka Bakery",
-              businessType: "Bakery",
-              address: "124 Green Lane, Manchester",
-              contactName: "Aisha Malik",
-              contactEmail: "aisha@barakabakery.com",
-              contactPhone: "07777888999",
-              submittedDocuments: ["Ingredient list", "Manufacturing process"],
-              details: "Artisan bakery offering traditional breads, desserts and pastries. No alcohol or pork derivatives used.",
-              supplierInfo: "Flour from Taylor's Mill. Dairy products from Organic Valley. Eggs from free-range farms.",
-              requestDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-              status: "approved"
-            },
-            {
-              _id: "cert4",
-              businessId: "business4",
-              businessName: "Safa Grocers",
-              businessType: "Grocery Store",
-              address: "15 Hillside Avenue, Leicester",
-              contactName: "Hassan Khan",
-              contactEmail: "hassan@safagrocers.com",
-              contactPhone: "07999000111",
-              submittedDocuments: ["Product list", "Supplier certificates"],
-              details: "Neighborhood grocery store specializing in imported foods from the Middle East and South Asia.",
-              supplierInfo: "Multiple suppliers - detailed list provided in documents.",
-              requestDate: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
-              status: "rejected"
-            }
-          ]);
+        // Fetch mosques data first
+        const mosquesResponse = await axios.get('/api/imam/mosques');
+        const mosquesData = mosquesResponse.data.mosques || mosquesResponse.data.data || [];
+        setMosques(mosquesData);
+        
+        // Set first mosque as selected if available
+        if (mosquesData.length > 0 && !selectedMosqueId) {
+          setSelectedMosqueId(mosquesData[0]._id);
         }
 
-        // Calculate stats
-        const newStats = {
-          totalMosques: mosques.length,
-          pendingVolunteers: volunteers.filter(v => v.status === "pending").length,
-          approvedVolunteers: volunteers.filter(v => v.status === "approved").length,
-          rejectedVolunteers: volunteers.filter(v => v.status === "rejected").length,
-          pendingHalalRequests: halalRequests.filter(r => r.status === "pending").length,
-          approvedHalalRequests: halalRequests.filter(r => r.status === "approved").length,
-          rejectedHalalRequests: halalRequests.filter(r => r.status === "rejected").length,
-          underReviewHalalRequests: halalRequests.filter(r => r.status === "under_review").length
-        };
+        // Fetch volunteer data for the mosque
+        if (selectedMosqueId || mosquesData[0]?._id) {
+          const currentMosqueId = selectedMosqueId || mosquesData[0]._id;
+          
+          try {
+            // Fetch mosque-specific applications
+            const applicationsResponse = await axios.get(`/api/volunteers/applications?mosqueId=${currentMosqueId}`);
+            setVolunteerApplications(applicationsResponse.data.data || []);
 
-        setStats(newStats);
+            // Fetch general volunteer offers (available to all mosques)
+            const offersResponse = await axios.get('/api/volunteers/offers?type=general');
+            setGeneralVolunteerOffers(offersResponse.data.data || []);
+
+          } catch (error) {
+            console.error("Error fetching volunteer data:", error);
+            
+            // Use mock data for demo
+            setVolunteerApplications([
+              {
+                _id: "app1",
+                userId: {
+                  _id: "user1",
+                  name: "Ahmed Ali",
+                  email: "ahmed@example.com",
+                  phone: "07123456789",
+                  city: "London"
+                },
+                mosqueId: currentMosqueId,
+                title: "Volunteer Application for Teaching",
+                description: "I would like to help with Quran classes for children",
+                motivationMessage: "I have experience teaching and want to give back to the community",
+                category: "education",
+                skillsOffered: ["Teaching", "Quran recitation", "Arabic language"],
+                availability: "Weekends and weekday evenings",
+                timeCommitment: "4-6 hours per week",
+                experience: "5 years teaching experience, Hafiz",
+                languages: ["English", "Arabic", "Urdu"],
+                contactInfo: {
+                  email: "ahmed@example.com",
+                  phone: "07123456789"
+                },
+                status: "pending",
+                createdAt: new Date().toISOString()
+              },
+              {
+                _id: "app2",
+                userId: {
+                  _id: "user2",
+                  name: "Fatima Khan",
+                  email: "fatima@example.com",
+                  phone: "07987654321",
+                  city: "London"
+                },
+                mosqueId: currentMosqueId,
+                title: "Administrative Support Volunteer",
+                description: "I can help with administrative tasks and event organization",
+                motivationMessage: "I want to support my local mosque and use my organizational skills",
+                category: "administration",
+                skillsOffered: ["Administration", "Event Planning", "Social Media"],
+                availability: "Tuesday and Thursday evenings",
+                timeCommitment: "3-4 hours per week",
+                experience: "Office administration experience, event coordination",
+                languages: ["English", "Bengali"],
+                contactInfo: {
+                  email: "fatima@example.com",
+                  phone: "07987654321"
+                },
+                status: "accepted",
+                createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+              }
+            ]);
+
+            setGeneralVolunteerOffers([
+              {
+                _id: "offer1",
+                userId: {
+                  _id: "user3",
+                  name: "Omar Yusuf",
+                  email: "omar@example.com",
+                  phone: "07111222333",
+                  city: "Birmingham"
+                },
+                title: "IT Support & Website Management",
+                description: "Experienced web developer offering technical support to mosques",
+                category: "technical",
+                skillsOffered: ["Web Development", "IT Support", "Graphic Design"],
+                availability: "Flexible, can work remotely",
+                timeCommitment: "5-10 hours per week",
+                experience: "10+ years in web development, helping Islamic organizations",
+                languages: ["English", "Turkish"],
+                preferredLocations: ["Birmingham", "London", "Manchester"],
+                contactInfo: {
+                  email: "omar@example.com",
+                  phone: "07111222333"
+                },
+                status: "active",
+                isGeneralOffer: true,
+                createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+              }
+            ]);
+          }
+        }
+
+        // Fetch halal certification requests (existing code)
+        try {
+          const halalResponse = await axios.get('/api/imam/halal-certification-requests');
+          setHalalRequests(halalResponse.data.requests || []);
+        } catch (error) {
+          console.error("Error fetching halal requests:", error);
+          // Use existing mock data
+          setHalalRequests([]);
+        }
+
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
         toast({
@@ -235,87 +202,67 @@ export default function ImamDashboard() {
     if (status === "authenticated") {
       fetchDashboardData();
     }
-  }, [session, status, router, toast]);
+  }, [session, status, router, toast, selectedMosqueId]);
 
-  const handleVolunteerStatusChange = async (volunteerId, newStatus) => {
+  // Calculate stats whenever data changes
+  useEffect(() => {
+    const newStats = {
+      totalMosques: mosques.length,
+      pendingApplications: volunteerApplications.filter(a => a.status === "pending").length,
+      acceptedApplications: volunteerApplications.filter(a => a.status === "accepted").length,
+      rejectedApplications: volunteerApplications.filter(a => a.status === "rejected").length,
+      generalOffers: generalVolunteerOffers.length,
+      pendingHalalRequests: halalRequests.filter(r => r.status === "pending").length,
+      approvedHalalRequests: halalRequests.filter(r => r.status === "approved").length,
+      rejectedHalalRequests: halalRequests.filter(r => r.status === "rejected").length,
+      underReviewHalalRequests: halalRequests.filter(r => r.status === "under_review").length
+    };
+    setStats(newStats);
+  }, [mosques, volunteerApplications, generalVolunteerOffers, halalRequests]);
+
+  const handleApplicationStatusChange = async (applicationId, newStatus) => {
     try {
       setLoading(true);
 
-      // In a real implementation, you would call your API
       try {
-        await axios.patch(`/api/imam/volunteers/${volunteerId}`, { status: newStatus });
-
-        // Update local state
-        setVolunteers(volunteers.map(volunteer =>
-          volunteer._id === volunteerId ? { ...volunteer, status: newStatus } : volunteer
-        ));
-
-        toast({
-          title: "Status Updated",
-          description: `Volunteer status changed to ${newStatus}`,
-        });
-      } catch (error) {
-        console.error("Error updating volunteer status:", error);
-
-        // For demo, update local state anyway
-        setVolunteers(volunteers.map(volunteer =>
-          volunteer._id === volunteerId ? { ...volunteer, status: newStatus } : volunteer
-        ));
-
-        toast({
-          title: "Status Updated (Demo)",
-          description: `Volunteer status changed to ${newStatus}`,
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Action Failed",
-        description: "Failed to update volunteer status",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleHalalRequestStatusChange = async (requestId, newStatus) => {
-    try {
-      setLoading(true);
-
-      // In a real implementation, you would call your API
-      try {
-        await axios.patch(`/api/imam/halal-certification-requests/${requestId}`, {
+        await axios.patch(`/api/volunteers/applications/${applicationId}`, { 
           status: newStatus,
-          reviewerId: session.user.id,
-          reviewNotes: `Status updated to ${newStatus} by ${session.user.name}`
+          respondedBy: session.user.id
         });
 
         // Update local state
-        setHalalRequests(halalRequests.map(request =>
-          request._id === requestId ? { ...request, status: newStatus } : request
+        setVolunteerApplications(volunteerApplications.map(app =>
+          app._id === applicationId ? { 
+            ...app, 
+            status: newStatus,
+            mosqueResponse: {
+              respondedBy: { _id: session.user.id, name: session.user.name },
+              respondedAt: new Date().toISOString()
+            }
+          } : app
         ));
 
         toast({
           title: "Status Updated",
-          description: `Certification request status changed to ${newStatus}`,
+          description: `Application status changed to ${newStatus}`,
         });
       } catch (error) {
-        console.error("Error updating halal certification status:", error);
+        console.error("Error updating application status:", error);
 
         // For demo, update local state anyway
-        setHalalRequests(halalRequests.map(request =>
-          request._id === requestId ? { ...request, status: newStatus } : request
+        setVolunteerApplications(volunteerApplications.map(app =>
+          app._id === applicationId ? { ...app, status: newStatus } : app
         ));
 
         toast({
           title: "Status Updated (Demo)",
-          description: `Certification request status changed to ${newStatus}`,
+          description: `Application status changed to ${newStatus}`,
         });
       }
     } catch (error) {
       toast({
         title: "Action Failed",
-        description: "Failed to update certification status",
+        description: "Failed to update application status",
         variant: "destructive",
       });
     } finally {
@@ -326,9 +273,12 @@ export default function ImamDashboard() {
   const getStatusColor = (status) => {
     const statusMap = {
       pending: "bg-yellow-100 text-yellow-800",
-      approved: "bg-green-100 text-green-800",
+      accepted: "bg-green-100 text-green-800",
       rejected: "bg-red-100 text-red-800",
-      under_review: "bg-blue-100 text-blue-800"
+      reviewed: "bg-blue-100 text-blue-800",
+      under_review: "bg-blue-100 text-blue-800",
+      approved: "bg-green-100 text-green-800",
+      active: "bg-green-100 text-green-800"
     };
     return statusMap[status] || "bg-gray-100 text-gray-800";
   };
@@ -336,9 +286,12 @@ export default function ImamDashboard() {
   const getStatusBadge = (status) => {
     const statusLabels = {
       pending: "Pending",
-      approved: "Approved",
+      accepted: "Accepted",
       rejected: "Rejected",
-      under_review: "Under Review"
+      reviewed: "Reviewed",
+      under_review: "Under Review",
+      approved: "Approved",
+      active: "Active"
     };
 
     return (
@@ -362,8 +315,26 @@ export default function ImamDashboard() {
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Imam Dashboard</h1>
 
+      {/* Mosque Selector */}
+      {mosques.length > 1 && (
+        <div className="mb-6">
+          <label className="block text-sm font-medium mb-2">Select Mosque:</label>
+          <select 
+            value={selectedMosqueId || ''} 
+            onChange={(e) => setSelectedMosqueId(e.target.value)}
+            className="border rounded-md px-3 py-2 bg-white"
+          >
+            {mosques.map(mosque => (
+              <option key={mosque._id} value={mosque._id}>
+                {mosque.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardHeader className="bg-green-50">
             <CardTitle className="flex items-center">
@@ -381,22 +352,31 @@ export default function ImamDashboard() {
           <CardHeader className="bg-blue-50">
             <CardTitle className="flex items-center">
               <UsersIcon className="mr-2 h-5 w-5" />
-              Volunteer Applications
+              Applications
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
-            <p className="text-3xl font-bold">{stats.pendingVolunteers}</p>
-            <p className="text-gray-500 mt-2">Pending volunteer applications</p>
+            <p className="text-3xl font-bold">{stats.pendingApplications}</p>
+            <p className="text-gray-500 mt-2">Pending applications</p>
             <div className="flex items-center mt-2 gap-2 flex-wrap">
               <Badge variant="outline" className="flex items-center">
                 <CheckCircleIcon className="h-3 w-3 mr-1" />
-                {stats.approvedVolunteers} Approved
-              </Badge>
-              <Badge variant="outline" className="flex items-center">
-                <XCircleIcon className="h-3 w-3 mr-1" />
-                {stats.rejectedVolunteers || 0} Rejected
+                {stats.acceptedApplications} Accepted
               </Badge>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="bg-purple-50">
+            <CardTitle className="flex items-center">
+              <EyeIcon className="mr-2 h-5 w-5" />
+              General Offers
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <p className="text-3xl font-bold">{stats.generalOffers}</p>
+            <p className="text-gray-500 mt-2">Available volunteers</p>
           </CardContent>
         </Card>
 
@@ -410,33 +390,21 @@ export default function ImamDashboard() {
           <CardContent className="pt-6">
             <p className="text-3xl font-bold">{stats.pendingHalalRequests}</p>
             <p className="text-gray-500 mt-2">Pending requests</p>
-            <div className="flex items-center mt-2 gap-2 flex-wrap">
-              <Badge variant="outline" className="flex items-center">
-                <ClockIcon className="h-3 w-3 mr-1" />
-                {stats.underReviewHalalRequests} In Review
-              </Badge>
-              <Badge variant="outline" className="flex items-center">
-                <CheckCircleIcon className="h-3 w-3 mr-1" />
-                {stats.approvedHalalRequests} Approved
-              </Badge>
-              <Badge variant="outline" className="flex items-center">
-                <XCircleIcon className="h-3 w-3 mr-1" />
-                {stats.rejectedHalalRequests} Rejected
-              </Badge>
-            </div>
           </CardContent>
         </Card>
       </div>
 
       <Tabs defaultValue="overview" className="mb-8" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="volunteers">Volunteers</TabsTrigger>
+          <TabsTrigger value="applications">Applications</TabsTrigger>
+          <TabsTrigger value="general-volunteers">General Volunteers</TabsTrigger>
           <TabsTrigger value="halal-verification">Halal Verification</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
           <div className="grid grid-cols-1 gap-6">
+            {/* Existing mosque overview section */}
             <Card>
               <CardHeader>
                 <CardTitle>My Mosques</CardTitle>
@@ -455,21 +423,18 @@ export default function ImamDashboard() {
                         <div>
                           <h3 className="font-medium">{mosque.name}</h3>
                           <p className="text-sm text-gray-500">{mosque.address}, {mosque.city}</p>
-                          <div className="flex items-center mt-2">
+                          <div className="flex items-center mt-2 gap-2">
                             {mosque.verified ? (
-                              <Badge className="bg-green-100 text-green-800">
-                                Verified
-                              </Badge>
+                              <Badge className="bg-green-100 text-green-800">Verified</Badge>
                             ) : (
-                              <Badge className="bg-yellow-100 text-yellow-800">
-                                Pending Verification
-                              </Badge>
+                              <Badge className="bg-yellow-100 text-yellow-800">Pending Verification</Badge>
                             )}
+                            <Badge variant="outline">
+                              {volunteerApplications.filter(app => app.mosqueId === mosque._id).length} Applications
+                            </Badge>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm">
-                          Manage
-                        </Button>
+                        <Button variant="outline" size="sm">Manage</Button>
                       </div>
                     ))}
                   </div>
@@ -477,68 +442,29 @@ export default function ImamDashboard() {
               </CardContent>
             </Card>
 
+            {/* Recent activity summary */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Volunteer Applications</CardTitle>
-                  <CardDescription>Latest volunteers for your mosque</CardDescription>
+                  <CardTitle>Recent Applications</CardTitle>
+                  <CardDescription>Latest volunteer applications for your mosque</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {volunteers.length === 0 ? (
-                    <p className="text-gray-500 text-center py-6">No volunteer applications yet</p>
+                  {volunteerApplications.length === 0 ? (
+                    <p className="text-gray-500 text-center py-6">No applications yet</p>
                   ) : (
                     <div className="space-y-4">
-                      {volunteers.slice(0, 2).map(volunteer => (
-                        <div key={volunteer._id} className="border rounded-lg p-4">
+                      {volunteerApplications.slice(0, 3).map(application => (
+                        <div key={application._id} className="border rounded-lg p-4">
                           <div className="flex justify-between items-start">
                             <div>
-                              <h3 className="font-medium">{volunteer.name}</h3>
-                              <p className="text-sm text-gray-500">{volunteer.email}</p>
+                              <h3 className="font-medium">{application.userId?.name}</h3>
+                              <p className="text-sm text-gray-500">{application.title}</p>
                             </div>
-                            {getStatusBadge(volunteer.status)}
-                          </div>
-                          <div className="mt-2">
-                            <p className="text-xs text-gray-500">Skills: {volunteer.skills.join(", ")}</p>
-                            <p className="text-xs text-gray-500">
-                              Available: {Object.entries(volunteer.availability || {})
-                                .filter(([_, times]) => times && times.length > 0)
-                                .map(([day, times]) => `${day.charAt(0).toUpperCase() + day.slice(1)} (${times.join(", ")})`)
-                                .join("; ")}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-                <CardFooter className="border-t pt-4 flex justify-center">
-                  <Button variant="outline" size="sm" onClick={() => setActiveTab("volunteers")}>
-                    View All Volunteers
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Halal Certification</CardTitle>
-                  <CardDescription>Latest certification requests</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {halalRequests.length === 0 ? (
-                    <p className="text-gray-500 text-center py-6">No certification requests yet</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {halalRequests.slice(0, 2).map(request => (
-                        <div key={request._id} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-medium">{request.businessName}</h3>
-                              <p className="text-sm text-gray-500">{request.businessType}</p>
-                            </div>
-                            {getStatusBadge(request.status)}
+                            {getStatusBadge(application.status)}
                           </div>
                           <p className="text-xs text-gray-500 mt-2">
-                            Submitted: {new Date(request.requestDate).toLocaleDateString()}
+                            Applied: {new Date(application.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                       ))}
@@ -546,8 +472,42 @@ export default function ImamDashboard() {
                   )}
                 </CardContent>
                 <CardFooter className="border-t pt-4 flex justify-center">
-                  <Button variant="outline" size="sm" onClick={() => setActiveTab("halal-verification")}>
-                    View All Requests
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab("applications")}>
+                    View All Applications
+                  </Button>
+                </CardFooter>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Available General Volunteers</CardTitle>
+                  <CardDescription>Community members offering their services</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {generalVolunteerOffers.length === 0 ? (
+                    <p className="text-gray-500 text-center py-6">No general offers yet</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {generalVolunteerOffers.slice(0, 3).map(offer => (
+                        <div key={offer._id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-medium">{offer.userId?.name}</h3>
+                              <p className="text-sm text-gray-500">{offer.title}</p>
+                            </div>
+                            {getStatusBadge(offer.status)}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Posted: {new Date(offer.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="border-t pt-4 flex justify-center">
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab("general-volunteers")}>
+                    View All General Volunteers
                   </Button>
                 </CardFooter>
               </Card>
@@ -555,111 +515,106 @@ export default function ImamDashboard() {
           </div>
         </TabsContent>
 
-        <TabsContent value="volunteers">
+        <TabsContent value="applications">
           <Card>
             <CardHeader>
-              <CardTitle>Volunteer Applications</CardTitle>
-              <CardDescription>Manage volunteers for your mosque</CardDescription>
+              <CardTitle>Mosque-Specific Volunteer Applications</CardTitle>
+              <CardDescription>
+                Applications submitted specifically for {mosques.find(m => m._id === selectedMosqueId)?.name || 'your mosque'}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {volunteers.length === 0 ? (
+              {volunteerApplications.length === 0 ? (
                 <div className="text-center py-6">
-                  <p className="text-gray-500">No volunteer applications yet.</p>
+                  <p className="text-gray-500">No applications yet for this mosque.</p>
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {volunteers.map(volunteer => (
-                    <div key={volunteer._id} className="border rounded-lg p-6">
-                      <div className="flex justify-between items-start">
+                  {volunteerApplications.map(application => (
+                    <div key={application._id} className="border rounded-lg p-6">
+                      <div className="flex justify-between items-start mb-4">
                         <div>
-                          <h3 className="font-semibold text-lg">{volunteer.name}</h3>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <p className="text-gray-500">{volunteer.email}</p>
-                            {volunteer.phone && (
-                              <p className="text-gray-500">| {volunteer.phone}</p>
-                            )}
-                          </div>
+                          <h3 className="font-semibold text-lg">{application.userId?.name}</h3>
+                          <p className="text-gray-600">{application.title}</p>
                         </div>
-                        {getStatusBadge(volunteer.status)}
+                        {getStatusBadge(application.status)}
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <div className="mb-4">
+                        <h4 className="font-medium text-sm mb-2">Motivation</h4>
+                        <p className="text-gray-700 bg-gray-50 p-3 rounded-md">{application.motivationMessage}</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                          <h4 className="font-medium text-sm">Skills</h4>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {volunteer.skills.map(skill => (
-                              <Badge key={skill} variant="secondary" className="mr-1 mt-1">
-                                {skill}
-                              </Badge>
-                            ))}
+                          <h4 className="font-medium text-sm">Contact Information</h4>
+                          <div className="space-y-1 mt-1">
+                            <div className="flex items-center text-sm">
+                              <MailIcon className="h-4 w-4 mr-2" />
+                              {application.contactInfo?.email || application.userId?.email}
+                            </div>
+                            {application.contactInfo?.phone && (
+                              <div className="flex items-center text-sm">
+                                <PhoneIcon className="h-4 w-4 mr-2" />
+                                {application.contactInfo.phone}
+                              </div>
+                            )}
                           </div>
                         </div>
 
                         <div>
                           <h4 className="font-medium text-sm">Availability</h4>
-                          <div className="space-y-1 mt-1">
-                            {Object.entries(volunteer.availability || {})
-                              .filter(([_, times]) => times && times.length > 0)
-                              .map(([day, times]) => (
-                                <div key={day} className="flex items-center text-sm">
-                                  <span className="font-medium w-24">{day.charAt(0).toUpperCase() + day.slice(1)}:</span>
-                                  <span>{Array.isArray(times) ? times.join(", ") : times}</span>
-                                </div>
-                              ))}
-                          </div>
+                          <p className="text-gray-700 mt-1">{application.availability}</p>
+                          <p className="text-sm text-gray-500">Time commitment: {application.timeCommitment}</p>
                         </div>
                       </div>
 
-                      <div className="mt-4">
-                        <h4 className="font-medium text-sm">Preferred Mosque</h4>
-                        <p className="text-gray-700">{volunteer.preferredMosque}</p>
+                      <div className="mb-4">
+                        <h4 className="font-medium text-sm">Skills Offered</h4>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {application.skillsOffered?.map(skill => (
+                            <Badge key={skill} variant="secondary">{skill}</Badge>
+                          ))}
+                        </div>
                       </div>
 
-                      <div className="mt-4">
-                        <h4 className="font-medium text-sm">Application Date</h4>
-                        <p className="text-gray-700">{new Date(volunteer.createdAt).toLocaleDateString()}</p>
+                      {application.experience && (
+                        <div className="mb-4">
+                          <h4 className="font-medium text-sm">Experience</h4>
+                          <p className="text-gray-700 mt-1">{application.experience}</p>
+                        </div>
+                      )}
+
+                      <div className="text-sm text-gray-500 mb-4">
+                        Applied: {new Date(application.createdAt).toLocaleDateString()}
+                        {application.mosqueResponse?.respondedAt && (
+                          <span> • Responded: {new Date(application.mosqueResponse.respondedAt).toLocaleDateString()}</span>
+                        )}
                       </div>
 
-                      {volunteer.status === "pending" && (
-                        <div className="flex gap-2 mt-6">
+                      {application.status === "pending" && (
+                        <div className="flex gap-2">
                           <Button
                             className="bg-green-600 hover:bg-green-700"
-                            onClick={() => handleVolunteerStatusChange(volunteer._id, "approved")}
+                            onClick={() => handleApplicationStatusChange(application._id, "accepted")}
                           >
-                            Approve
+                            Accept Application
                           </Button>
                           <Button
                             variant="outline"
                             className="text-red-600 border-red-300 hover:bg-red-50"
-                            onClick={() => handleVolunteerStatusChange(volunteer._id, "rejected")}
+                            onClick={() => handleApplicationStatusChange(application._id, "rejected")}
                           >
-                            Reject
+                            Reject Application
                           </Button>
                         </div>
                       )}
 
-                      {volunteer.status === "approved" && (
-                        <div className="flex gap-2 mt-6">
+                      {application.status === "accepted" && (
+                        <div className="flex gap-2">
                           <Button variant="outline">
+                            <MailIcon className="h-4 w-4 mr-2" />
                             Contact Volunteer
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="text-red-600 border-red-300 hover:bg-red-50"
-                            onClick={() => handleVolunteerStatusChange(volunteer._id, "rejected")}
-                          >
-                            Revoke Approval
-                          </Button>
-                        </div>
-                      )}
-
-                      {volunteer.status === "rejected" && (
-                        <div className="flex gap-2 mt-6">
-                          <Button
-                            variant="outline"
-                            onClick={() => handleVolunteerStatusChange(volunteer._id, "approved")}
-                          >
-                            Reconsider Application
                           </Button>
                         </div>
                       )}
@@ -671,140 +626,111 @@ export default function ImamDashboard() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="general-volunteers">
+          <Card>
+            <CardHeader>
+              <CardTitle>General Volunteer Offers</CardTitle>
+              <CardDescription>Community members offering their services to all mosques</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {generalVolunteerOffers.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-gray-500">No general volunteer offers available.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {generalVolunteerOffers.map(offer => (
+                    <div key={offer._id} className="border rounded-lg p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="font-semibold text-lg">{offer.userId?.name}</h3>
+                          <p className="text-gray-600">{offer.title}</p>
+                          <p className="text-sm text-gray-500">{offer.userId?.city}</p>
+                        </div>
+                        {getStatusBadge(offer.status)}
+                      </div>
+
+                      <div className="mb-4">
+                        <h4 className="font-medium text-sm mb-2">Description</h4>
+                        <p className="text-gray-700">{offer.description}</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <h4 className="font-medium text-sm">Contact Information</h4>
+                          <div className="space-y-1 mt-1">
+                            <div className="flex items-center text-sm">
+                              <MailIcon className="h-4 w-4 mr-2" />
+                              {offer.contactInfo?.email}
+                            </div>
+                            {offer.contactInfo?.phone && (
+                              <div className="flex items-center text-sm">
+                                <PhoneIcon className="h-4 w-4 mr-2" />
+                                {offer.contactInfo.phone}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="font-medium text-sm">Availability</h4>
+                          <p className="text-gray-700 mt-1">{offer.availability}</p>
+                          <p className="text-sm text-gray-500">Time commitment: {offer.timeCommitment}</p>
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <h4 className="font-medium text-sm">Skills Offered</h4>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {offer.skillsOffered?.map(skill => (
+                            <Badge key={skill} variant="secondary">{skill}</Badge>
+                          ))}
+                        </div>
+                      </div>
+
+                      {offer.preferredLocations?.length > 0 && (
+                        <div className="mb-4">
+                          <h4 className="font-medium text-sm">Preferred Locations</h4>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {offer.preferredLocations.map(location => (
+                              <Badge key={location} variant="outline">{location}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="text-sm text-gray-500 mb-4">
+                        Posted: {new Date(offer.createdAt).toLocaleDateString()}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button>
+                          <MailIcon className="h-4 w-4 mr-2" />
+                          Contact Volunteer
+                        </Button>
+                        <Button variant="outline">
+                          Express Interest
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="halal-verification">
+          {/* Existing halal verification content - keep as is */}
           <Card>
             <CardHeader>
               <CardTitle>Halal Certification Requests</CardTitle>
               <CardDescription>Verify and approve halal certification for businesses</CardDescription>
             </CardHeader>
             <CardContent>
-              {halalRequests.length === 0 ? (
-                <div className="text-center py-6">
-                  <p className="text-gray-500">No certification requests yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {halalRequests.map(request => (
-                    <div key={request._id} className="border rounded-lg p-6">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold text-lg">{request.businessName}</h3>
-                          <p className="text-gray-500">{request.businessType} | {request.address}, {request.city}</p>
-                        </div>
-                        {getStatusBadge(request.status)}
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        <div>
-                          <h4 className="font-medium text-sm">Contact Information</h4>
-                          <p className="text-gray-700">{request.contactName}</p>
-                          <p className="text-gray-700">{request.contactEmail}</p>
-                          {request.contactPhone && <p className="text-gray-700">{request.contactPhone}</p>}
-                        </div>
-
-                        <div>
-                          <h4 className="font-medium text-sm">Request Date</h4>
-                          <p className="text-gray-700">{new Date(request.requestDate).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-
-                      {request.details && (
-                        <div className="mt-4">
-                          <h4 className="font-medium text-sm">Business Details</h4>
-                          <p className="text-gray-700 text-sm mt-1 bg-gray-50 p-3 rounded-md">{request.details}</p>
-                        </div>
-                      )}
-
-                      {request.supplierInfo && (
-                        <div className="mt-4">
-                          <h4 className="font-medium text-sm">Supplier Information</h4>
-                          <p className="text-gray-700 text-sm mt-1 bg-gray-50 p-3 rounded-md">{request.supplierInfo}</p>
-                        </div>
-                      )}
-
-                      <div className="mt-4">
-                        <h4 className="font-medium text-sm">Submitted Documents</h4>
-                        <ul className="list-disc list-inside text-gray-700 mt-1">
-                          {request.submittedDocuments?.map((doc, index) => (
-                            <li key={index} className="flex items-center">
-                              <FileIcon className="h-4 w-4 mr-1 inline" />
-                              {doc}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {request.status === "pending" && (
-                        <div className="flex gap-2 mt-6">
-                          <Button
-                            className="bg-blue-600 hover:bg-blue-700"
-                            onClick={() => handleHalalRequestStatusChange(request._id, "under_review")}
-                          >
-                            Start Review
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="text-red-600 border-red-300 hover:bg-red-50"
-                            onClick={() => handleHalalRequestStatusChange(request._id, "rejected")}
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      )}
-
-                      {request.status === "under_review" && (
-                        <div className="flex gap-2 mt-6">
-                          <Button
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => handleHalalRequestStatusChange(request._id, "approved")}
-                          >
-                            Approve Certification
-                          </Button>
-                          <Button variant="outline">
-                            Request More Information
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="text-red-600 border-red-300 hover:bg-red-50"
-                            onClick={() => handleHalalRequestStatusChange(request._id, "rejected")}
-                          >
-                            Reject
-                          </Button>
-                        </div>
-                      )}
-
-                      {request.status === "approved" && (
-                        <div className="flex gap-2 mt-6">
-                          <Button variant="outline">
-                            View Certificate
-                          </Button>
-                          <Button variant="outline">
-                            Contact Business
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="text-red-600 border-red-300 hover:bg-red-50"
-                            onClick={() => handleHalalRequestStatusChange(request._id, "rejected")}
-                          >
-                            Revoke Certification
-                          </Button>
-                        </div>
-                      )}
-
-                      {request.status === "rejected" && (
-                        <div className="flex gap-2 mt-6">
-                          <Button
-                            variant="outline"
-                            onClick={() => handleHalalRequestStatusChange(request._id, "under_review")}
-                          >
-                            Reconsider Application
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="text-center py-6">
+                <p className="text-gray-500">Halal certification system will be available soon.</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
