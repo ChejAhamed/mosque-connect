@@ -12,7 +12,7 @@ echo -e "${YELLOW}This script will seed your database with example mosque data.$
 echo
 
 # Check if MongoDB connection string is set
-if [ -z "$DATABASE_URI" ] && [ -z "$MONGODB_URI" ]; then
+if [ -z "$DATABASE_URI" ] && [ -z "$DATABASE_URI" ]; then
   if [ -f .env.local ]; then
     echo -e "${YELLOW}Loading environment variables from .env.local${NC}"
     export $(grep -v '^#' .env.local | xargs)

@@ -109,7 +109,7 @@ Make sure you also have these variables configured:
 NEXTAUTH_SECRET=your-secure-random-string
 
 # Database connection
-MONGODB_URI=your-mongodb-connection-string
+DATABASE_URI=your-mongodb-connection-string
 
 # Other API keys as required
 GOOGLE_MAPS_API_KEY=your-google-maps-api-key

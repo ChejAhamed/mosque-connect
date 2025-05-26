@@ -3,7 +3,7 @@ import connectDB from '@/lib/db';
 import UserModel from '@/models/User';
 import VolunteerModel from '@/models/Volunteer';
 import { getServerSession } from 'next-auth';
-import { authConfig } from '@/app/api/auth/[...nextauth]/config';
+import { authOptions as authConfig } from '@/app/api/auth/[...nextauth]/config';
 import { z } from 'zod';
 
 // Volunteer registration schema validation
