@@ -6,6 +6,7 @@ This guide explains how to deploy MosqueConnect to different platforms, with spe
 
 Vercel provides the best support for Next.js applications, including server-side rendering and API routes.
 
+
 ### Prerequisites
 
 1. A [GitHub](https://github.com) account with your project pushed to a repository
