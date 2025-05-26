@@ -17,6 +17,12 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [pagination, setPagination] = useState({
+    current: 1,
+    total: 1,
+    count: 0,
+    totalUsers: 0
+    });
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -29,23 +35,35 @@ export default function AdminUsersPage() {
       return;
     }
 
-    const fetchUsers = async () => {
-      try {
-        console.log("Fetching users...");
-        const response = await axios.get('/api/admin/users');
-        console.log("Users response:", response.data);
-        setUsers(response.data || []);
-      } catch (error) {
-        console.error("Error fetching users:", error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch users",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+const fetchUsers = async () => {
+  try {
+    setLoading(true);
+    const response = await axios.get('/api/admin/users');
+    
+    // The API returns { users: [], pagination: {} }
+    setUsers(response.data.users || []);
+    
+    if (response.data.pagination) {
+      setPagination(response.data.pagination);
+    }
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    toast({
+      title: "Error",
+      description: "Failed to load users",
+      variant: "destructive"
+    });
+    setUsers([]); // Ensure users is always an array
+    setPagination({
+      current: 1,
+      total: 1,
+      count: 0,
+      totalUsers: 0
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
     if (status === "authenticated") {
       fetchUsers();

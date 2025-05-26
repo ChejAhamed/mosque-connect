@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, Settings, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
@@ -91,26 +91,21 @@ export function Navbar() {
     const role = session?.user?.role;
     const actions = [];
 
-    // All authenticated users can access volunteer dashboard
-    if (session) {
-      actions.push({ href: "/dashboard/volunteer", label: "🤝 Volunteer Dashboard" });
-    }
-
     if (role === "imam" || role === "admin") {
-      actions.push({ href: "/dashboard/imam", label: "Imam Dashboard" });
+      actions.push({ href: "/dashboard/imam", label: "Imam Dashboard", icon: Settings });
     }
 
     if (role === "admin") {
-      actions.push({ href: "/admin/dashboard", label: "🔧 Admin Dashboard" });
-      actions.push({ href: "/admin/mosques", label: "Manage Mosques" });
-      actions.push({ href: "/admin/businesses", label: "Manage Businesses" });
-      actions.push({ href: "/admin/volunteers", label: "Manage Volunteers" });
-      actions.push({ href: "/admin/users", label: "Manage Users" });
-      actions.push({ href: "/admin/analytics", label: "Analytics & Reports" });
+      actions.push({ href: "/admin/dashboard", label: "🔧 Admin Dashboard", icon: Settings });
+      actions.push({ href: "/admin/mosques", label: "Manage Mosques", icon: Settings });
+      actions.push({ href: "/admin/businesses", label: "Manage Businesses", icon: Settings });
+      actions.push({ href: "/admin/volunteers", label: "Manage Volunteers", icon: Settings });
+      actions.push({ href: "/admin/users", label: "Manage Users", icon: Settings });
+      actions.push({ href: "/admin/analytics", label: "Analytics & Reports", icon: Settings });
     }
 
     if (role === "business" || role === "admin") {
-      actions.push({ href: "/dashboard/business/announcements", label: "Manage Announcements" });
+      actions.push({ href: "/dashboard/business/announcements", label: "Manage Announcements", icon: Settings });
     }
 
     return actions;
@@ -143,32 +138,30 @@ export function Navbar() {
                   .filter((link) => link.showAlways || session)
                   .map((link) => (
                     <NavigationMenuItem key={link.href}>
-                      <Link href={link.href} legacyBehavior passHref>
-                        <NavigationMenuLink
-                          className={cn(
-                            navigationMenuTriggerStyle(),
-                            pathname === link.href && "bg-accent text-accent-foreground"
-                          )}
-                        >
-                          {link.label}
-                        </NavigationMenuLink>
-                      </Link>
+                      <NavigationMenuLink
+                        href={link.href}
+                        className={cn(
+                          navigationMenuTriggerStyle(),
+                          pathname === link.href && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        {link.label}
+                      </NavigationMenuLink>
                     </NavigationMenuItem>
                   ))}
                 {/* Prominent Admin Dashboard link for admin users */}
                 {session?.user?.role === "admin" && (
                   <NavigationMenuItem>
-                    <Link href="/admin/dashboard" legacyBehavior passHref>
-                      <NavigationMenuLink
-                        className={cn(
-                          navigationMenuTriggerStyle(),
-                          "text-red-600 font-bold",
-                          pathname === "/admin/dashboard" && "bg-accent text-accent-foreground"
-                        )}
-                      >
-                        🔧 Admin Dashboard
-                      </NavigationMenuLink>
-                    </Link>
+                    <NavigationMenuLink
+                      href="/admin/dashboard"
+                      className={cn(
+                        navigationMenuTriggerStyle(),
+                        "text-red-600 font-bold",
+                        pathname === "/admin/dashboard" && "bg-accent text-accent-foreground"
+                      )}
+                    >
+                      🔧 Admin Dashboard
+                    </NavigationMenuLink>
                   </NavigationMenuItem>
                 )}
               </NavigationMenuList>
@@ -189,32 +182,74 @@ export function Navbar() {
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-56">
                     <div className="flex items-center justify-start gap-2 p-2">
                       <div className="flex flex-col space-y-0.5 leading-none">
                         <p className="font-medium text-sm">{displayName}</p>
                         <p className="text-xs text-gray-500">
                           {session.user.email}
                         </p>
+                        <p className="text-xs text-gray-400 capitalize">
+                          {session.user.role || 'user'}
+                        </p>
                       </div>
                     </div>
                     <DropdownMenuSeparator />
 
+                    {/* User Profile and Settings */}
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile" className="flex items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>My Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings" className="flex items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Account Settings</span>
+                      </Link>
+                    </DropdownMenuItem>
+
+                    {/* Volunteer Dashboard for all users */}
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/volunteer" className="flex items-center">
+                        <Heart className="mr-2 h-4 w-4" />
+                        <span>🤝 Volunteer Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+
+                    {/* Main Dashboard Link */}
                     {dashboardLink && (
                       <DropdownMenuItem asChild>
-                        <Link href={dashboardLink.href}>{dashboardLink.label}</Link>
+                        <Link href={dashboardLink.href} className="flex items-center">
+                          <Settings className="mr-2 h-4 w-4" />
+                          <span>{dashboardLink.label}</span>
+                        </Link>
                       </DropdownMenuItem>
                     )}
 
-                    {specialActions.map((action, index) => (
-                      <DropdownMenuItem key={index} asChild>
-                        <Link href={action.href}>{action.label}</Link>
-                      </DropdownMenuItem>
-                    ))}
+                    {/* Role-specific Actions */}
+                    {specialActions.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        {specialActions.map((action, index) => (
+                          <DropdownMenuItem key={index} asChild>
+                            <Link href={action.href} className="flex items-center">
+                              {action.icon && <action.icon className="mr-2 h-4 w-4" />}
+                              <span>{action.label}</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </>
+                    )}
 
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => signOut({ callbackUrl: "/" })}
+                      className="text-red-600 focus:text-red-600"
                     >
                       Log Out
                     </DropdownMenuItem>
@@ -272,6 +307,39 @@ export function Navbar() {
                   </Link>
                 ))}
 
+              {/* Mobile User Profile Section */}
+              {session && (
+                <>
+                  <div className="border-t pt-3 mt-3">
+                    <p className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Account
+                    </p>
+                  </div>
+                  <Link
+                    href="/profile"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
+                      pathname === "/profile"
+                        ? "bg-green-100 text-green-700"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    My Profile
+                  </Link>
+                  <Link
+                    href="/settings"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
+                      pathname === "/settings"
+                        ? "bg-green-100 text-green-700"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    Account Settings
+                  </Link>
+                </>
+              )}
+
               {/* Mobile Dashboard Links */}
               {session && (
                 <>
@@ -280,7 +348,18 @@ export function Navbar() {
                       Dashboard
                     </p>
                   </div>
-                  {dashboardLink && (
+                  <Link
+                    href="/dashboard/volunteer"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center ${
+                      pathname === "/dashboard/volunteer"
+                        ? "bg-green-100 text-green-700"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Heart className="mr-2 h-4 w-4" />
+                    🤝 Volunteer Dashboard
+                  </Link>
+                  {dashboardLink && dashboardLink.href !== "/dashboard/volunteer" && (
                     <Link
                       href={dashboardLink.href}
                       className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -292,7 +371,7 @@ export function Navbar() {
                       {dashboardLink.label}
                     </Link>
                   )}
-                  {specialActions.map((action, index) => (
+                  {specialActions.filter(action => action.href !== "/dashboard/volunteer").map((action, index) => (
                     <Link
                       key={index}
                       href={action.href}
@@ -327,7 +406,7 @@ export function Navbar() {
                 <div className="border-t pt-3 mt-3">
                   <Button
                     variant="outline"
-                    className="w-full"
+                    className="w-full text-red-600"
                     onClick={() => signOut({ callbackUrl: "/" })}
                   >
                     Log Out
