@@ -225,7 +225,7 @@ export default function ImamDashboard() {
       setLoading(true);
 
       try {
-        await axios.patch(`/api/volunteers/applications/${applicationId}`, { 
+        await axios.put(`/api/volunteers/applications/${applicationId}`, { 
           status: newStatus,
           respondedBy: session.user.id
         });

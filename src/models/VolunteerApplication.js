@@ -12,7 +12,6 @@ const VolunteerApplicationSchema = new Schema(
       ref: 'Mosque',
       required: true,
     },
-    // Application details
     title: {
       type: String,
       required: [true, 'Please provide a title'],
@@ -57,13 +56,11 @@ const VolunteerApplicationSchema = new Schema(
       },
       phone: String,
     },
-    // Application status
     status: {
       type: String,
       enum: ['pending', 'reviewed', 'accepted', 'rejected', 'withdrawn'],
       default: 'pending',
     },
-    // Mosque response
     mosqueResponse: {
       respondedBy: {
         type: Schema.Types.ObjectId,
@@ -75,7 +72,6 @@ const VolunteerApplicationSchema = new Schema(
       message: String,
       notes: String,
     },
-    // Admin tracking
     adminNotes: String,
     priority: {
       type: String,
@@ -83,31 +79,16 @@ const VolunteerApplicationSchema = new Schema(
       default: 'medium',
     },
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+  }
 );
 
-// Indexes for better query performance
 VolunteerApplicationSchema.index({ mosqueId: 1, status: 1 });
 VolunteerApplicationSchema.index({ userId: 1 });
 VolunteerApplicationSchema.index({ createdAt: -1 });
+VolunteerApplicationSchema.index({ status: 1 });
 
-let VolunteerApplicationModel;
-try {
-  if (mongoose && mongoose.models) {
-    VolunteerApplicationModel = mongoose.models.VolunteerApplication || mongoose.model('VolunteerApplication', VolunteerApplicationSchema);
-  } else {
-    VolunteerApplicationModel = mongoose.model('VolunteerApplication', VolunteerApplicationSchema);
-  }
-} catch (error) {
-  console.error('Error initializing VolunteerApplication model:', error);
-  VolunteerApplicationModel = {
-    find: () => Promise.resolve([]),
-    findOne: () => Promise.resolve(null),
-    findById: () => Promise.resolve(null),
-    create: () => Promise.resolve(null),
-    countDocuments: () => Promise.resolve(0)
-  };
-}
-
-export { VolunteerApplicationModel as VolunteerApplication };
-export default VolunteerApplicationModel;
+export default mongoose.models.VolunteerApplication || mongoose.model('VolunteerApplication', VolunteerApplicationSchema);

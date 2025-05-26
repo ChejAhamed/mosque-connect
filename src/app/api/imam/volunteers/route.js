@@ -1,68 +1,50 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import authConfig from '@/app/api/auth/[...nextauth]/config';
-import connectDB from '@/lib/db';
-import { VolunteerApplication } from '@/models/VolunteerApplication';
-import { VolunteerOffer } from '@/models/VolunteerOffer';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../auth/[...nextauth]/config';
+import { connectDB } from '@/lib/db';
+import VolunteerApplication from '@/models/VolunteerApplication';
 
 export async function GET(request) {
   try {
-    const session = await getServerSession(authConfig);
-    
-    if (!session || (session.user.role !== 'imam' && session.user.role !== 'admin')) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 401 }
-      );
+    const session = await getServerSession(authOptions);
+
+    if (!session || session.user.role !== 'imam') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await connectDB();
-    
-    const searchParams = request.nextUrl.searchParams;
-    const mosqueId = searchParams.get('mosqueId');
-    const type = searchParams.get('type'); // 'applications' or 'general-offers'
-    
-    if (!mosqueId) {
-      return NextResponse.json(
-        { success: false, message: 'Mosque ID is required' },
-        { status: 400 }
-      );
+
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    const limit = parseInt(searchParams.get('limit')) || 50;
+
+    let query = {};
+    if (status && status !== 'all') {
+      query.status = status;
     }
 
-    let data = {};
+    const applications = await VolunteerApplication.find(query)
+      .populate('userId', 'name email city phone')
+      .populate('mosqueId', 'name city address')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
 
-    // Get mosque-specific applications
-    if (!type || type === 'applications') {
-      const applications = await VolunteerApplication.find({ mosqueId })
-        .populate('userId', 'name email phone city')
-        .populate('mosqueResponse.respondedBy', 'name email')
-        .sort({ createdAt: -1 });
-      
-      data.applications = applications;
-    }
-
-    // Get general volunteer offers (available to all mosques)
-    if (!type || type === 'general-offers') {
-      const generalOffers = await VolunteerOffer.find({ 
-        isGeneralOffer: true, 
-        status: 'active',
-        targetMosqueId: null 
-      })
-        .populate('userId', 'name email phone city')
-        .sort({ createdAt: -1 });
-      
-      data.generalOffers = generalOffers;
-    }
+    const stats = {
+      total: applications.length,
+      pending: applications.filter(a => a.status === 'pending').length,
+      accepted: applications.filter(a => a.status === 'accepted').length,
+      rejected: applications.filter(a => a.status === 'rejected').length
+    };
 
     return NextResponse.json({
-      success: true,
-      data,
+      data: {
+        applications,
+        stats
+      }
     });
+
   } catch (error) {
-    console.error('Error fetching volunteers for imam:', error);
-    return NextResponse.json(
-      { success: false, message: 'Failed to fetch volunteers' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch volunteers' }, { status: 500 });
   }
 }

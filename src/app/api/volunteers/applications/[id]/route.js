@@ -8,13 +8,13 @@ export async function PUT(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== 'imam') {
+    if (!session || !['imam', 'admin'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await connectDB();
 
-    const { volunteerId } = await params;
+    const { id } = await params;
     const { status } = await request.json();
 
     if (!['pending', 'accepted', 'rejected', 'reviewed'].includes(status)) {
@@ -22,13 +22,11 @@ export async function PUT(request, { params }) {
     }
 
     const application = await VolunteerApplication.findByIdAndUpdate(
-      volunteerId,
+      id,
       { 
         status,
-        ...(status !== 'pending' && {
-          'mosqueResponse.respondedBy': session.user.id,
-          'mosqueResponse.respondedAt': new Date()
-        })
+        'mosqueResponse.respondedBy': session.user.id,
+        'mosqueResponse.respondedAt': new Date()
       },
       { new: true }
     );
@@ -51,16 +49,17 @@ export async function GET(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== 'imam') {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await connectDB();
 
-    const { volunteerId } = await params;
-    const application = await VolunteerApplication.findById(volunteerId)
+    const { id } = await params;
+    const application = await VolunteerApplication.findById(id)
       .populate('userId', 'name email city phone')
-      .populate('mosqueId', 'name city address');
+      .populate('mosqueId', 'name city address')
+      .populate('mosqueResponse.respondedBy', 'name email');
 
     if (!application) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
