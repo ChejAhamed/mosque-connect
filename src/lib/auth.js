@@ -1,7 +1,7 @@
 import CredentialsProvider from 'next-auth/providers/credentials';
-import connectDB from '@/lib/db';
+import { connectDB } from '@/lib/db';
 import { compare } from 'bcryptjs';
-import UserModel from '@/models/User';
+import User from '@/models/User';
 
 // Add this logging to help debug NEXTAUTH_URL issues
 if (process.env.NODE_ENV === 'development') {
@@ -30,20 +30,10 @@ export const authOptions = {
           await connectDB();
 
           // Find the user in the database
-          const user = await UserModel.findOne({ email: credentials.email });
+          const user = await User.findOne({ email: credentials.email });
 
           // If no user is found, return null
           if (!user) {
-            // For MVP purposes, if we don't have any users in the database yet,
-            // we'll allow a demo login
-            if (credentials.email === 'demo@example.com' && credentials.password === 'password') {
-              return {
-                id: '1',
-                name: 'Demo User',
-                email: 'demo@example.com',
-                role: 'user',
-              };
-            }
             return null;
           }
 
@@ -55,12 +45,12 @@ export const authOptions = {
             return null;
           }
 
-          // Return user object
+          // Return user object with role
           return {
             id: user._id.toString(),
             name: user.name,
             email: user.email,
-            role: user.role,
+            role: user.role || 'user', // Ensure role is included
           };
         } catch (error) {
           console.error('Auth error:', error);
@@ -74,16 +64,22 @@ export const authOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
+      // Include role in JWT token
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.name = user.name;
+        token.email = user.email;
       }
       return token;
     },
     async session({ session, token }) {
+      // Include role in session
       if (token && session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
+        session.user.name = token.name;
+        session.user.email = token.email;
       }
       return session;
     },
@@ -92,18 +88,6 @@ export const authOptions = {
     signIn: '/login',
     error: '/login',
   },
-  // Use NEXTAUTH_URL from environment or dynamically determine it
-  // The NEXTAUTH_URL is critical for callback URLs
-  // If not set, it will try to use VERCEL_URL in production or localhost in development
-  ...(process.env.NEXTAUTH_URL ? {} : {
-    url: {
-      origin: process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : process.env.NODE_ENV === 'development'
-          ? 'http://localhost:3000'
-          : undefined,
-    },
-  }),
   secret: process.env.NEXTAUTH_SECRET || 'a-temporary-secret-for-development',
 };
 

@@ -1,77 +1,68 @@
 import { NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
-import Business from '@/models/Business';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { connectDB } from '@/lib/db';
+import Business from '@/models/Business';
+import User from '@/models/User';
 
-// GET - Fetch all businesses for admin management
 export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
 
-    // Check if user is admin
-    if (!session || session.user.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Unauthorized. Only administrators can access this endpoint.' },
-        { status: 401 }
-      );
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     await connectDB();
 
-    // Fetch businesses with optional filtering
-    const searchParams = request.nextUrl.searchParams;
+    const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const type = searchParams.get('type');
+    const limit = parseInt(searchParams.get('limit')) || 50;
+    const page = parseInt(searchParams.get('page')) || 1;
 
-    // Build query filter
-    const filter = {};
-    if (status) {
-      filter.status = status;
-    }
-    if (type) {
-      filter.type = { $regex: new RegExp(type, 'i') };
+    let query = {};
+
+    if (status && status !== 'all') {
+      query['verification.status'] = status;
     }
 
-    // Fetch all businesses with pagination
-    const page = Number(searchParams.get('page')) || 1;
-    const limit = Number(searchParams.get('limit')) || 50;
-    const skip = (page - 1) * limit;
+    const total = await Business.countDocuments(query);
 
-    // Fetch businesses
-    const businesses = await Business.find(filter)
-      .sort({ createdAt: -1 }) // Most recent first
-      .skip(skip)
+    const businesses = await Business.find(query)
+      .populate('owner', 'name email createdAt')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
       .limit(limit)
-      .populate('ownerId', 'name email')
       .lean();
 
-    // Count total businesses matching filter
-    const total = await Business.countDocuments(filter);
-
-    // Transform MongoDB objects to plain objects
-    const serializedBusinesses = businesses.map(business => ({
+    // Transform the data to match frontend expectations
+    const transformedBusinesses = businesses.map(business => ({
       ...business,
-      _id: business._id.toString(),
-      ownerId: business.ownerId ? {
-        ...business.ownerId,
-        _id: business.ownerId._id.toString()
-      } : null,
-      createdAt: business.createdAt?.toISOString(),
-      updatedAt: business.updatedAt?.toISOString(),
+      businessName: business.name,
+      email: business.contact?.email,
+      phone: business.contact?.phone,
+      website: business.contact?.website,
+      address: business.contact?.address,
+      operatingHours: business.hours,
+      status: business.verification?.status || 'pending'
     }));
 
     return NextResponse.json({
-      businesses: serializedBusinesses,
+      businesses: transformedBusinesses,
       pagination: {
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit)
+        current: page,
+        total: Math.ceil(total / limit),
+        count: transformedBusinesses.length,
+        totalItems: total
       }
     });
+
   } catch (error) {
-    console.error('Error fetching businesses for admin:', error);
+    console.error('Error fetching businesses:', error);
     return NextResponse.json(
       { error: 'Failed to fetch businesses' },
       { status: 500 }

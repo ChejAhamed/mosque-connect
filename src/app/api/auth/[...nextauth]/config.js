@@ -1,5 +1,5 @@
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { User } from '@/models/User';
+import User from '@/models/User';
 import { connectDB } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
@@ -31,6 +31,13 @@ export const authOptions = {
             return null;
           }
           
+          console.log('User found in authorize:', {
+            id: user._id.toString(),
+            email: user.email,
+            name: user.name,
+            role: user.role
+          });
+          
           return {
             id: user._id.toString(),
             email: user.email,
@@ -44,30 +51,47 @@ export const authOptions = {
       }
     })
   ],
+  session: {
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
   callbacks: {
-    jwt: async ({ token, user }) => {
+    async jwt({ token, user, trigger }) {
+      console.log('JWT callback - trigger:', trigger);
+      console.log('JWT callback - user:', user);
+      console.log('JWT callback - token before:', token);
+      
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.name = user.name;
+        token.email = user.email;
       }
+      
+      console.log('JWT callback - token after:', token);
       return token;
     },
-    session: async ({ session, token }) => {
-      if (token) {
+    async session({ session, token }) {
+      console.log('Session callback - token:', token);
+      console.log('Session callback - session before:', session);
+      
+      if (token && session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
+        session.user.name = token.name;
+        session.user.email = token.email;
       }
+      
+      console.log('Session callback - session after:', session);
       return session;
     },
   },
   pages: {
     signIn: '/login',
+    error: '/login',
   },
-  session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60,
-  },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || 'a-temporary-secret-for-development',
+  debug: process.env.NODE_ENV === 'development',
 };
 
 export default authOptions;

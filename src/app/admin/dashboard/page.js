@@ -9,28 +9,27 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
-  UsersIcon,
-  BuildingIcon,
-  ClipboardCheckIcon,
-  TrendingUpIcon,
-  EyeIcon,
-  MapPinIcon,
-  CalendarIcon,
-  AlertTriangleIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  StoreIcon
+  Users,
+  Building,
+  ClipboardCheck,
+  TrendingUp,
+  Eye,
+  MapPin,
+  Calendar,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Store
 } from "lucide-react";
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { toast } = useToast();
   
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
@@ -82,7 +81,7 @@ export default function AdminDashboard() {
     }
   }, [session, status, router]);
 
-  // API call helper
+  // API call helper with better error handling
   const apiCall = async (url, options = {}) => {
     try {
       const response = await fetch(url, {
@@ -95,6 +94,16 @@ export default function AdminDashboard() {
       });
 
       if (!response.ok) {
+        console.error(`API call failed for ${url}: ${response.status} ${response.statusText}`);
+        
+        // Try to get error details from response
+        try {
+          const errorData = await response.json();
+          console.error('Error details:', errorData);
+        } catch (e) {
+          console.error('Could not parse error response');
+        }
+        
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -105,62 +114,80 @@ export default function AdminDashboard() {
     }
   };
 
-  // Fetch overview data
+  // Fetch overview data with better error handling
   const fetchOverviewData = async () => {
     try {
       setLoading(true);
       
-      const [userStats, mosquesData, businessesData, volunteerStatsData] = await Promise.allSettled([
-        apiCall('/api/admin/users/stats'),
-        apiCall('/api/admin/mosques'),
-        apiCall('/api/admin/businesses'),
-        apiCall('/api/admin/volunteers?type=stats')
-      ]);
+      // Reset pending approvals counter
+      setSystemStats(prev => ({ ...prev, pendingApprovals: 0 }));
+      
+      // Fetch data with individual error handling
+      const promises = [
+        apiCall('/api/admin/users/stats').catch(err => {
+          console.error('Failed to fetch user stats:', err);
+          return { total: 0 };
+        }),
+        apiCall('/api/admin/mosques').catch(err => {
+          console.error('Failed to fetch mosques:', err);
+          return { mosques: [] };
+        }),
+        apiCall('/api/admin/businesses').catch(err => {
+          console.error('Failed to fetch businesses:', err);
+          return { businesses: [] };
+        }),
+        apiCall('/api/admin/volunteers?type=stats').catch(err => {
+          console.error('Failed to fetch volunteer stats:', err);
+          return { 
+            data: { 
+              stats: {
+                applications: { total: 0, pending: 0, accepted: 0, rejected: 0 },
+                offers: { total: 0, active: 0, inactive: 0 },
+                topMosques: []
+              }
+            }
+          };
+        })
+      ];
+
+      const [userStats, mosquesData, businessesData, volunteerStatsData] = await Promise.all(promises);
 
       // Process user stats
-      if (userStats.status === 'fulfilled') {
-        setSystemStats(prev => ({ 
-          ...prev, 
-          totalUsers: userStats.value.total || 0 
-        }));
-      }
+      setSystemStats(prev => ({ 
+        ...prev, 
+        totalUsers: userStats.total || 0 
+      }));
 
       // Process mosques data
-      if (mosquesData.status === 'fulfilled') {
-        const mosques = mosquesData.value.mosques || mosquesData.value || [];
-        setSystemStats(prev => ({ 
-          ...prev, 
-          totalMosques: mosques.length,
-          pendingApprovals: prev.pendingApprovals + mosques.filter(m => m.status === 'pending').length
-        }));
-      }
+      const mosques = mosquesData.mosques || [];
+      const pendingMosques = mosques.filter(m => m.status === 'pending').length;
+      setSystemStats(prev => ({ 
+        ...prev, 
+        totalMosques: mosques.length,
+        pendingApprovals: prev.pendingApprovals + pendingMosques
+      }));
 
       // Process businesses data
-      if (businessesData.status === 'fulfilled') {
-        const businesses = businessesData.value.businesses || businessesData.value || [];
-        setSystemStats(prev => ({ 
-          ...prev, 
-          totalBusinesses: businesses.length,
-          pendingApprovals: prev.pendingApprovals + businesses.filter(b => b.status === 'pending').length
-        }));
-      }
+      const businesses = businessesData.businesses || [];
+      const pendingBusinesses = businesses.filter(b => 
+        b.status === 'pending' || b.verification?.status === 'pending'
+      ).length;
+      setSystemStats(prev => ({ 
+        ...prev, 
+        totalBusinesses: businesses.length,
+        pendingApprovals: prev.pendingApprovals + pendingBusinesses
+      }));
 
       // Process volunteer stats
-      if (volunteerStatsData.status === 'fulfilled') {
-        setVolunteerStats(volunteerStatsData.value.data?.stats || {
-          applications: { total: 0, pending: 0, accepted: 0, rejected: 0 },
-          offers: { total: 0, active: 0, inactive: 0 },
-          topMosques: []
-        });
-      }
+      setVolunteerStats(volunteerStatsData.data?.stats || {
+        applications: { total: 0, pending: 0, accepted: 0, rejected: 0 },
+        offers: { total: 0, active: 0, inactive: 0 },
+        topMosques: []
+      });
 
     } catch (error) {
       console.error("Error fetching overview data:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data. Please check your connection and try again.",
-        variant: "destructive"
-      });
+      toast.error("Failed to load dashboard data. Some features may not work properly.");
     } finally {
       setLoading(false);
     }
@@ -179,11 +206,8 @@ export default function AdminDashboard() {
       setUsers(data.users || []);
       setUsersPagination(data.pagination || { current: 1, total: 1 });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch users",
-        variant: "destructive"
-      });
+      toast.error("Failed to fetch users");
+      console.error('Fetch users error:', error);
     }
   };
 
@@ -197,17 +221,18 @@ export default function AdminDashboard() {
 
       if (applicationsData.status === 'fulfilled') {
         setVolunteerApplications(applicationsData.value.data?.applications || []);
+      } else {
+        console.error('Failed to fetch applications:', applicationsData.reason);
       }
 
       if (offersData.status === 'fulfilled') {
         setVolunteerOffers(offersData.value.data?.offers || []);
+      } else {
+        console.error('Failed to fetch offers:', offersData.reason);
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch volunteer data",
-        variant: "destructive"
-      });
+      toast.error("Failed to fetch volunteer data");
+      console.error('Fetch volunteer data error:', error);
     }
   };
 
@@ -220,14 +245,11 @@ export default function AdminDashboard() {
       });
 
       const data = await apiCall(`/api/admin/mosques?${params}`);
-      setMosques(data.mosques || data || []);
+      setMosques(data.mosques || []);
       setMosquesPagination(data.pagination || { current: 1, total: 1 });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch mosques",
-        variant: "destructive"
-      });
+      toast.error("Failed to fetch mosques");
+      console.error('Fetch mosques error:', error);
     }
   };
 
@@ -240,14 +262,11 @@ export default function AdminDashboard() {
       });
 
       const data = await apiCall(`/api/admin/businesses?${params}`);
-      setBusinesses(data.businesses || data || []);
+      setBusinesses(data.businesses || []);
       setBusinessesPagination(data.pagination || { current: 1, total: 1 });
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch businesses",
-        variant: "destructive"
-      });
+      toast.error("Failed to fetch businesses");
+      console.error('Fetch businesses error:', error);
     }
   };
 
@@ -276,6 +295,7 @@ export default function AdminDashboard() {
       pending: "bg-yellow-100 text-yellow-800",
       accepted: "bg-green-100 text-green-800",
       approved: "bg-green-100 text-green-800",
+      verified: "bg-green-100 text-green-800",
       rejected: "bg-red-100 text-red-800",
       active: "bg-green-100 text-green-800",
       inactive: "bg-gray-100 text-gray-800",
@@ -292,7 +312,7 @@ export default function AdminDashboard() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-6 pt-24">
         <div className="flex justify-center items-center min-h-[60vh]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700"></div>
         </div>
@@ -301,7 +321,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto p-6 pt-24">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <div className="flex gap-2">
@@ -311,6 +331,9 @@ export default function AdminDashboard() {
           <Button variant="outline" onClick={() => handleTabChange('volunteers')}>
             Manage Volunteers
           </Button>
+          <Button variant="outline" onClick={() => router.push('/admin/businesses')}>
+            Manage Businesses
+          </Button>
         </div>
       </div>
 
@@ -319,7 +342,7 @@ export default function AdminDashboard() {
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleTabChange('users')}>
           <CardHeader className="bg-blue-50">
             <CardTitle className="flex items-center">
-              <UsersIcon className="mr-2 h-5 w-5" />
+              <Users className="mr-2 h-5 w-5" />
               Total Users
             </CardTitle>
           </CardHeader>
@@ -332,7 +355,7 @@ export default function AdminDashboard() {
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleTabChange('mosques')}>
           <CardHeader className="bg-green-50">
             <CardTitle className="flex items-center">
-              <BuildingIcon className="mr-2 h-5 w-5" />
+              <Building className="mr-2 h-5 w-5" />
               Total Mosques
             </CardTitle>
           </CardHeader>
@@ -345,7 +368,7 @@ export default function AdminDashboard() {
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleTabChange('businesses')}>
           <CardHeader className="bg-purple-50">
             <CardTitle className="flex items-center">
-              <StoreIcon className="mr-2 h-5 w-5" />
+              <Store className="mr-2 h-5 w-5" />
               Total Businesses
             </CardTitle>
           </CardHeader>
@@ -358,7 +381,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="bg-orange-50">
             <CardTitle className="flex items-center">
-              <AlertTriangleIcon className="mr-2 h-5 w-5" />
+              <AlertTriangle className="mr-2 h-5 w-5" />
               Pending Approvals
             </CardTitle>
           </CardHeader>
@@ -374,7 +397,7 @@ export default function AdminDashboard() {
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleTabChange('volunteers')}>
           <CardHeader className="bg-blue-50">
             <CardTitle className="flex items-center">
-              <ClipboardCheckIcon className="mr-2 h-5 w-5" />
+              <ClipboardCheck className="mr-2 h-5 w-5" />
               Volunteer Applications
             </CardTitle>
           </CardHeader>
@@ -383,11 +406,11 @@ export default function AdminDashboard() {
             <p className="text-gray-500 mt-2">Total applications</p>
             <div className="flex items-center mt-3 gap-2 flex-wrap">
               <Badge variant="outline" className="flex items-center">
-                <ClockIcon className="h-3 w-3 mr-1" />
+                <Clock className="h-3 w-3 mr-1" />
                 {volunteerStats.applications?.pending || 0} Pending
               </Badge>
               <Badge variant="outline" className="flex items-center">
-                <CheckCircleIcon className="h-3 w-3 mr-1" />
+                <CheckCircle className="h-3 w-3 mr-1" />
                 {volunteerStats.applications?.accepted || 0} Accepted
               </Badge>
             </div>
@@ -397,7 +420,7 @@ export default function AdminDashboard() {
         <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => handleTabChange('volunteers')}>
           <CardHeader className="bg-green-50">
             <CardTitle className="flex items-center">
-              <EyeIcon className="mr-2 h-5 w-5" />
+              <Eye className="mr-2 h-5 w-5" />
               General Volunteer Offers
             </CardTitle>
           </CardHeader>
@@ -406,11 +429,11 @@ export default function AdminDashboard() {
             <p className="text-gray-500 mt-2">Total offers posted</p>
             <div className="flex items-center mt-3 gap-2 flex-wrap">
               <Badge variant="outline" className="flex items-center">
-                <CheckCircleIcon className="h-3 w-3 mr-1" />
+                <CheckCircle className="h-3 w-3 mr-1" />
                 {volunteerStats.offers?.active || 0} Active
               </Badge>
               <Badge variant="outline" className="flex items-center">
-                <XCircleIcon className="h-3 w-3 mr-1" />
+                <XCircle className="h-3 w-3 mr-1" />
                 {volunteerStats.offers?.inactive || 0} Inactive
               </Badge>
             </div>
@@ -420,7 +443,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="bg-purple-50">
             <CardTitle className="flex items-center">
-              <TrendingUpIcon className="mr-2 h-5 w-5" />
+              <TrendingUp className="mr-2 h-5 w-5" />
               Top Mosques by Applications
             </CardTitle>
           </CardHeader>
@@ -515,8 +538,8 @@ export default function AdminDashboard() {
                           <p>{new Date(user.createdAt).toLocaleDateString()}</p>
                         </div>
                         <div>
-                          <span className="font-medium">Mosques:</span>
-                          <p>{user.totalMosques || 0}</p>
+                          <span className="font-medium">Role:</span>
+                          <p>{user.role || 'user'}</p>
                         </div>
                       </div>
                     </div>
@@ -679,22 +702,22 @@ export default function AdminDashboard() {
                     <div key={business._id} className="border rounded-lg p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h3 className="font-semibold">{business.name}</h3>
-                          <p className="text-gray-600">{business.address}</p>
+                          <h3 className="font-semibold">{business.businessName || business.name}</h3>
+                          <p className="text-gray-600">{business.contact?.address?.street || business.address}</p>
                         </div>
                         <div className="flex gap-2">
-                          <Badge variant="outline">{business.businessType}</Badge>
-                          {getStatusBadge(business.status)}
+                          <Badge variant="outline">{business.category || business.businessType}</Badge>
+                          {getStatusBadge(business.status || business.verification?.status)}
                         </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div>
-                          <span className="font-medium">Owner:</span>
-                          <p>{business.owner}</p>
+                          <span className="font-medium">Email:</span>
+                          <p>{business.email || business.contact?.email}</p>
                         </div>
                         <div>
                           <span className="font-medium">City:</span>
-                          <p>{business.city}</p>
+                          <p>{business.contact?.address?.city || business.city}</p>
                         </div>
                         <div>
                           <span className="font-medium">Registered:</span>

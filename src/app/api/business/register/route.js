@@ -48,7 +48,7 @@ export async function POST(request) {
       phone,
       city,
     });
-
+    console.log('User created:', user, business);
     // Create business profile
     const business = await Business.create({
       name,

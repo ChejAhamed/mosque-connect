@@ -1,103 +1,187 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import authOptions from '@/lib/auth';
 import connectDB from '@/lib/db';
+import Business from '@/models/Business';
+import Product from '@/models/Product';
 
-// For static export compatibility
-import BusinessModel from '@/models/Business';
-import UserModel from '@/models/User';
-import { z } from 'zod';
-import mongoose from 'mongoose';
-
-// Zod schema for validating product data
-const productSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  description: z.string().min(10, 'Description must be at least 10 characters').max(800).optional(),
-  price: z.number().min(0, 'Price cannot be negative'),
-  imageUrl: z.string().url('Invalid image URL').optional().or(z.literal('')),
-  isHalal: z.boolean().default(true),
-});
-
-// GET all products for the logged-in business
-export async function GET(req) {
+export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.id) {
+
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (session.user.role !== 'business') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     await connectDB();
 
-    // Verify user is a business owner
-    const user = await UserModel.findById(session.user.id);
-    if (!user || user.role !== 'business') {
-      return NextResponse.json({ error: 'Forbidden - User is not a business owner' }, { status: 403 });
-    }
+    // Get business profile
+    const business = await Business.findOne({ owner: session.user.id });
 
-    // Find the business profile for this user
-    const business = await BusinessModel.findOne({ ownerId: session.user.id });
     if (!business) {
-      return NextResponse.json({ error: 'Business profile not found for this user' }, { status: 404 });
+      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
     }
 
-    // Return the products array (or empty array if no products)
-    return NextResponse.json({ products: business.products || [] }, { status: 200 });
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 20;
+    const status = searchParams.get('status');
+    const category = searchParams.get('category');
+    const sort = searchParams.get('sort') || 'createdAt';
+
+    // Build query
+    let query = { businessId: business._id };
+
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    if (category && category !== 'all') {
+      query.category = category;
+    }
+
+    // Get total count
+    const total = await Product.countDocuments(query);
+
+    // Get products with pagination
+    const products = await Product.find(query)
+      .sort({ [sort]: sort === 'createdAt' ? -1 : 1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    return NextResponse.json({
+      products,
+      pagination: {
+        current: page,
+        total: Math.ceil(total / limit),
+        count: products.length,
+        totalItems: total
+      }
+    });
+
   } catch (error) {
     console.error('Error fetching products:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch products' },
+      { status: 500 }
+    );
   }
 }
 
-// POST a new product
-export async function POST(req) {
+export async function POST(request) {
+  console.log('Creating product...');
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.id) {
+
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await connectDB();
-
-    // Verify user is a business owner
-    const user = await UserModel.findById(session.user.id);
-    if (!user || user.role !== 'business') {
-      return NextResponse.json({ error: 'Forbidden - User is not a business owner' }, { status: 403 });
+    if (session.user.role !== 'business') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Find the business profile
-    const business = await BusinessModel.findOne({ ownerId: session.user.id });
-    if (!business) {
-      return NextResponse.json({ error: 'Business profile not found for this user' }, { status: 404 });
-    }
+    const data = await request.json();
+    const {
+      name,
+      description,
+      price,
+      compareAtPrice,
+      category,
+      subcategory,
+      images,
+      inventory,
+      status = 'active',
+      featured,
+      tags,
+      specifications,
+      variants,
+      availability
+    } = data;
 
-    // Parse and validate the request body
-    const body = await req.json();
-    const validationResult = productSchema.safeParse(body);
-
-    if (!validationResult.success) {
+    // Validation
+    if (!name || !description || !price || !category) {
       return NextResponse.json(
-        { error: 'Invalid input', details: validationResult.error.issues },
+        { error: 'Name, description, price, and category are required' },
         { status: 400 }
       );
     }
 
-    // Create a new product with a unique _id
-    const newProduct = {
-      _id: new mongoose.Types.ObjectId(),
-      ...validationResult.data,
-      createdAt: new Date()
-    };
+    if (price <= 0) {
+      return NextResponse.json(
+        { error: 'Price must be greater than 0' },
+        { status: 400 }
+      );
+    }
 
-    // Add the product to the business's products array
-    business.products.push(newProduct);
-    await business.save();
+    await connectDB();
 
-    return NextResponse.json(
-      { message: 'Product added successfully', product: newProduct },
-      { status: 201 }
-    );
+    // Get business profile
+    const business = await Business.findOne({ owner: session.user.id });
+
+    if (!business) {
+      return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+    }
+
+    // Create product
+    const product = new Product({
+      businessId: business._id,
+      name: name.trim(),
+      description: description.trim(),
+      price: parseFloat(price),
+      compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : undefined,
+      category: category.trim(),
+      subcategory: subcategory?.trim(),
+      images: images || [],
+      inventory: {
+        stock: inventory?.unlimited ? 0 : parseInt(inventory?.stock) || 0,
+        unlimited: inventory?.unlimited || false,
+        trackInventory: inventory?.trackInventory !== false,
+        lowStockThreshold: parseInt(inventory?.lowStockThreshold) || 10
+      },
+      status,
+      featured: featured || false,
+      tags: tags || [],
+      specifications: specifications || {},
+      variants: variants || [],
+      availability: availability || {
+        inStore: true,
+        online: true,
+        delivery: false,
+        pickup: true
+      }
+    });
+
+    await product.save();
+
+    // Update business product count
+    if (business.updateProductCount) {
+      await business.updateProductCount();
+    }
+
+    return NextResponse.json({
+      product,
+      message: 'Product created successfully'
+    }, { status: 201 });
+
   } catch (error) {
     console.error('Error creating product:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    
+    if (error.name === 'ValidationError') {
+      return NextResponse.json(
+        { error: 'Invalid data provided', details: error.message },
+        { status: 400 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: 'Failed to create product' },
+      { status: 500 }
+    );
   }
 }
