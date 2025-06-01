@@ -313,57 +313,71 @@ const fetchDashboardData = async () => {
       </div>
 
       {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Manage your business efficiently</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <Link href="/dashboard/business/products">
-              <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
-                <Package className="h-6 w-6 mb-2" />
-                <span className="text-sm">Products</span>
-              </Button>
-            </Link>
-            
-            <Link href="/dashboard/business/offers">
-              <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
-                <Tags className="h-6 w-6 mb-2" />
-                <span className="text-sm">Offers</span>
-              </Button>
-            </Link>
-            
-            <Link href="/dashboard/business/profile">
-              <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
-                <Store className="h-6 w-6 mb-2" />
-                <span className="text-sm">Profile</span>
-              </Button>
-            </Link>
-            
-            <Link href="/dashboard/business/analytics">
-              <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
-                <BarChart3 className="h-6 w-6 mb-2" />
-                <span className="text-sm">Analytics</span>
-              </Button>
-            </Link>
-            
-            <Link href={`/shop/${business?._id}`} target="_blank">
-              <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
-                <Eye className="h-6 w-6 mb-2" />
-                <span className="text-sm">View Store</span>
-              </Button>
-            </Link>
-            
-            <Link href="/dashboard/business/gallery">
-              <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
-                <Image className="h-6 w-6 mb-2" />
-                <span className="text-sm">Gallery</span>
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+<Card>
+  <CardHeader>
+    <CardTitle>Quick Actions</CardTitle>
+    <CardDescription>Manage your business efficiently</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-8 gap-4">
+      <Link href="/dashboard/business/products">
+        <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
+          <Package className="h-6 w-6 mb-2" />
+          <span className="text-sm">Products</span>
+        </Button>
+      </Link>
+      
+      <Link href="/dashboard/business/offers">
+        <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
+          <Tags className="h-6 w-6 mb-2" />
+          <span className="text-sm">Offers</span>
+        </Button>
+      </Link>
+      
+      <Link href="/dashboard/business/profile">
+        <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
+          <Store className="h-6 w-6 mb-2" />
+          <span className="text-sm">Profile</span>
+        </Button>
+      </Link>
+      
+      <Link href="/dashboard/business/analytics">
+        <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
+          <BarChart3 className="h-6 w-6 mb-2" />
+          <span className="text-sm">Analytics</span>
+        </Button>
+      </Link>
+      
+      <Link href="/dashboard/business/locations">
+        <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
+          <MapPin className="h-6 w-6 mb-2" />
+          <span className="text-sm">Locations</span>
+        </Button>
+      </Link>
+      
+      <Link href={`/shop/${business?._id}`} target="_blank">
+        <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
+          <Eye className="h-6 w-6 mb-2" />
+          <span className="text-sm">View Store</span>
+        </Button>
+      </Link>
+      
+      <Link href="/dashboard/business/gallery">
+        <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
+          <Image className="h-6 w-6 mb-2" />
+          <span className="text-sm">Gallery</span>
+        </Button>
+      </Link>
+
+      <Link href="/dashboard/business/announcements">
+        <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
+          <Users className="h-6 w-6 mb-2" />
+          <span className="text-sm">Announcements</span>
+        </Button>
+      </Link>
+    </div>
+  </CardContent>
+  </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Products & Performance Charts */}

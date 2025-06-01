@@ -5,35 +5,29 @@ import Business from '@/models/Business';
 export async function GET(request, { params }) {
   try {
     await connectDB();
+    
+    // Await params before accessing properties
+    const { businessId } = await params;
 
     // Find business by ID and increment view count
     const business = await Business.findByIdAndUpdate(
-      params.businessId,
+      businessId,
       { $inc: { 'stats.views': 1 } },
       { new: true }
     )
-    .populate('owner', 'name email')
-    .lean();
+      .populate('owner', 'name email')
+      .lean();
 
     if (!business) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 });
     }
 
-    // Only return active businesses
     if (business.status !== 'active') {
-      return NextResponse.json({ error: 'Business not available' }, { status: 404 });
+      return NextResponse.json({ error: 'Business is not active' }, { status: 404 });
     }
 
-    // Remove sensitive information
-    const publicBusiness = {
-      ...business,
-      owner: {
-        name: business.owner?.name || 'Business Owner'
-      }
-    };
-
     return NextResponse.json({
-      business: publicBusiness,
+      business,
       message: 'Business retrieved successfully'
     });
 

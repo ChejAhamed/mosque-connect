@@ -6,6 +6,9 @@ import Announcement from '@/models/Announcement';
 import Business from '@/models/Business';
 
 export async function GET(request, { params }) {
+  console.log('=== GET /api/business/announcements/[id] called ===');
+  console.log('Params:', params);
+  
   try {
     const session = await getServerSession(authOptions);
 
