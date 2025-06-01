@@ -91,18 +91,19 @@ export function Navbar() {
     const role = session?.user?.role;
     const actions = [];
 
-    if (role === "imam" || role === "admin") {
+    if (role === "imam") {
       actions.push({ href: "/dashboard/imam", label: "Imam Dashboard", icon: Settings });
     }
 
-    if (role === "admin") {
-      actions.push({ href: "/admin/dashboard", label: "🔧 Admin Dashboard", icon: Settings });
-      actions.push({ href: "/admin/mosques", label: "Manage Mosques", icon: Settings });
-      actions.push({ href: "/admin/businesses", label: "Manage Businesses", icon: Settings });
-      actions.push({ href: "/admin/volunteers", label: "Manage Volunteers", icon: Settings });
-      actions.push({ href: "/admin/users", label: "Manage Users", icon: Settings });
-      actions.push({ href: "/admin/analytics", label: "Analytics & Reports", icon: Settings });
-    }
+    // if (role === "admin") {
+    //   actions.push({ href: "/admin/dashboard", label: "🔧 Admin Dashboard", icon: Settings });
+    //   actions.push({ href: "/admin/mosques", label: "Manage Mosques", icon: Settings });
+    //   actions.push({ href: "/admin/businesses", label: "Manage Businesses", icon: Settings });
+    //   actions.push({ href: "/admin/volunteers", label: "Manage Volunteers", icon: Settings });
+    //   actions.push({ href: "/admin/users", label: "Manage Users", icon: Settings });
+    //   actions.push({ href: "/admin/analytics", label: "Analytics & Reports", icon: Settings });
+    //   actions.push({ href: "/dashboard/imam", label: "Imam Dashboard", icon: Settings });
+    // }
 
     if (role === "business" || role === "admin") {
       actions.push({ href: "/dashboard/business/announcements", label: "Manage Announcements", icon: Settings });
