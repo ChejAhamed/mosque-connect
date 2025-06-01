@@ -1,59 +1,75 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose from 'mongoose';
 
-const AnnouncementSchema = new Schema(
-  {
-    title: {
-      type: String,
-      required: [true, 'Please provide an announcement title'],
-      maxlength: [100, 'Title cannot be more than 100 characters'],
-    },
-    content: {
-      type: String,
-      required: [true, 'Please provide content'],
-    },
-    mosqueId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Mosque',
-      required: true,
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    isPinned: {
-      type: Boolean,
-      default: false,
-    },
-    expiryDate: {
-      type: Date,
-    },
+const announcementSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 200
   },
-  { timestamps: true }
-);
-
-// Create index for mosque announcements
-AnnouncementSchema.index({ mosqueId: 1 });
-// Create index for pinned announcements
-AnnouncementSchema.index({ isPinned: 1 });
-
-// Add error handling for model initialization
-let AnnouncementModel;
-try {
-  if (mongoose && mongoose.models) {
-    AnnouncementModel = mongoose.models.Announcement || mongoose.model('Announcement', AnnouncementSchema);
-  } else {
-    AnnouncementModel = mongoose.model('Announcement', AnnouncementSchema);
+  content: {
+    type: String,
+    required: true,
+    maxlength: 2000
+  },
+  type: {
+    type: String,
+    enum: ['event', 'general', 'urgent', 'promotion', 'sale', 'news', 'service', 'system', 'maintenance', 'update'],
+    required: true
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium'
+  },
+  businessId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Business',
+    required: false // Optional for admin announcements
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  startDate: {
+    type: Date,
+    default: Date.now
+  },
+  endDate: {
+    type: Date
+  },
+  targetAudience: {
+    type: String,
+    enum: ['all', 'members', 'visitors', 'businesses'],
+    default: 'all'
+  },
+  attachments: [{
+    url: String,
+    filename: String,
+    fileType: String
+  }],
+  viewCount: {
+    type: Number,
+    default: 0
+  },
+  isAdminAnnouncement: {
+    type: Boolean,
+    default: false
   }
-} catch (error) {
-  console.error('Error initializing Announcement model:', error);
-  // Fallback model that won't crash the application
-  AnnouncementModel = {
-    find: () => Promise.resolve([]),
-    findOne: () => Promise.resolve(null),
-    findById: () => Promise.resolve(null),
-    create: () => Promise.resolve(null)
-  };
-}
+}, {
+  timestamps: true
+});
 
-export default AnnouncementModel;
+// Add indexes for better performance
+announcementSchema.index({ businessId: 1, createdAt: -1 });
+announcementSchema.index({ type: 1, isActive: 1 });
+announcementSchema.index({ isAdminAnnouncement: 1, isActive: 1 });
+
+const Announcement = mongoose.models.Announcement || mongoose.model('Announcement', announcementSchema);
+
+export default Announcement;
