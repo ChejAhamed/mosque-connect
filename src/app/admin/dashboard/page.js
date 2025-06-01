@@ -325,14 +325,23 @@ export default function AdminDashboard() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => handleTabChange('users')}>
+          <Button variant="outline" onClick={() => router.push('/admin/users')}>
             Manage Users
           </Button>
-          <Button variant="outline" onClick={() => handleTabChange('volunteers')}>
+          <Button variant="outline" onClick={() => router.push('/admin/volunteers')}>
             Manage Volunteers
           </Button>
           <Button variant="outline" onClick={() => router.push('/admin/businesses')}>
             Manage Businesses
+          </Button>
+          <Button variant="outline" onClick={() => router.push('/admin/mosques')}>
+            Manage Mosques
+          </Button>
+          <Button variant="outline" onClick={() => router.push('/dashboard/imam')}>
+            Manage Imams
+          </Button>
+          <Button variant="outline" onClick={() => router.push('/admin/analytics')}>
+            Analytics
           </Button>
         </div>
       </div>
