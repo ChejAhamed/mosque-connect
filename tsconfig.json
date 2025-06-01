@@ -36,7 +36,7 @@
     "build/types/**/*.ts",
     "next-env.d.ts",
     "out/types/**/*.ts"
-, "src/app/businesses/page.js"  ],
+, "src/app/businesses/page.js", "src/app/mosques/page.js"  ],
   "exclude": [
     "node_modules"
   ]

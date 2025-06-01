@@ -1,37 +1,17 @@
 import { NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
-import { Mosque } from '@/models/Mosque';
+import { connectDB } from '@/lib/db';
+import Mosque from '@/models/Mosque';
 import { getServerSession } from 'next-auth';
-import authConfig from '@/app/api/auth/[...nextauth]/config';
-import { z } from 'zod';
-
-// Validation schema for creating a mosque
-const mosqueSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  address: z.string().min(5, 'Address must be at least 5 characters'),
-  city: z.string().min(2, 'City must be at least 2 characters'),
-  state: z.string().min(2, 'State must be at least 2 characters'),
-  zipCode: z.string().min(5, 'Zip code must be at least 5 characters'),
-  phone: z.string().optional(),
-  email: z.string().email('Invalid email format').optional(),
-  website: z.string().url('Invalid URL format').optional().or(z.literal('')),
-  description: z.string().optional(),
-  facilityFeatures: z.array(z.string()).optional(),
-  imageUrl: z.string().optional(),
-  location: z.object({
-    type: z.literal('Point'),
-    coordinates: z.tuple([z.number(), z.number()])
-  }).optional(),
-  imamId: z.string().optional(),
-});
+import { authOptions } from '@/lib/auth';
 
 // GET all mosques or filter by query parameters
 export async function GET(request) {
   try {
     await connectDB();
+    console.log('Connected to DB, fetching mosques...');
 
     // Parse query parameters
-    const searchParams = request.nextUrl.searchParams;
+    const { searchParams } = new URL(request.url);
     const city = searchParams.get('city');
     const state = searchParams.get('state');
     const name = searchParams.get('name');
@@ -43,8 +23,8 @@ export async function GET(request) {
       status: 'approved'
     };
 
-    // If admin or imam user is authenticated, allow them to see all mosques
-    const session = await getServerSession(authConfig);
+    // Check if admin or imam user is authenticated
+    const session = await getServerSession(authOptions);
     if (session && (session.user.role === 'admin' || session.user.role === 'imam')) {
       // For admins and imams, allow seeing all mosques based on optional status filter
       const statusFilter = searchParams.get('status');
@@ -56,11 +36,11 @@ export async function GET(request) {
       }
     }
 
-    if (city) filter.city = { $regex: new RegExp(city, 'i') };
-    if (state) filter.state = { $regex: new RegExp(state, 'i') };
+    if (city) filter['contact.address.city'] = { $regex: new RegExp(city, 'i') };
+    if (state) filter['contact.address.state'] = { $regex: new RegExp(state, 'i') };
     if (name) filter.name = { $regex: new RegExp(name, 'i') };
     if (features && features.length > 0) {
-      filter.facilityFeatures = { $in: features };
+      filter.facilities = { $in: features };
     }
 
     // Fetch mosques with pagination
@@ -68,17 +48,53 @@ export async function GET(request) {
     const limit = Number.parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
 
+    console.log('Query filter:', filter);
+
     const mosques = await Mosque.find(filter)
       .skip(skip)
       .limit(limit)
-      .populate('imamId', 'name email')
+      .populate('imam', 'name email')
       .lean();
+
+    console.log(`Found ${mosques.length} mosques`);
 
     const total = await Mosque.countDocuments(filter);
 
+    // Transform mosques to match your frontend expectations
+    const transformedMosques = mosques.map(mosque => ({
+      _id: mosque._id,
+      name: mosque.name,
+      description: mosque.description,
+      address: mosque.contact?.address?.street || '',
+      city: mosque.contact?.address?.city || '',
+      state: mosque.contact?.address?.state || '',
+      zipCode: mosque.contact?.address?.zipCode || '',
+      phone: mosque.contact?.phone || '',
+      email: mosque.contact?.email || '',
+      website: mosque.contact?.website || '',
+      imageUrl: mosque.imageUrl || '',
+      facilityFeatures: mosque.facilities || [],
+      prayerTimes: mosque.prayerTimes || {},
+      location: mosque.contact?.address?.coordinates ? {
+        type: 'Point',
+        coordinates: mosque.contact.address.coordinates
+      } : null,
+      status: mosque.status,
+      verified: mosque.verified,
+      imam: mosque.imam,
+      capacity: mosque.capacity,
+      services: mosque.services || [],
+      stats: mosque.stats || {},
+      createdAt: mosque.createdAt,
+      updatedAt: mosque.updatedAt,
+      verificationNotes: mosque.verificationNotes,
+      verifiedAt: mosque.verifiedAt,
+      verifiedBy: mosque.verifiedBy
+    }));
+
     return NextResponse.json({
       success: true,
-      data: mosques,
+      data: transformedMosques,
       pagination: {
         total,
         page,
@@ -98,7 +114,7 @@ export async function GET(request) {
 // POST create a new mosque
 export async function POST(request) {
   try {
-    const session = await getServerSession(authConfig);
+    const session = await getServerSession(authOptions);
 
     // Check authentication
     if (!session) {
@@ -117,26 +133,43 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-
-    // Validate input data
-    const result = mosqueSchema.safeParse(body);
-    if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: 'Validation failed', details: result.error.issues },
-        { status: 400 }
-      );
-    }
+    console.log('Creating mosque with data:', body);
 
     await connectDB();
 
-    // Create new mosque
-    const mosque = await Mosque.create({
-      ...result.data,
-      imamId: session.user.id, // Set current user as imam
-      verified: false, // New mosques need verification
+    // Create new mosque with the correct field structure
+    const mosqueData = {
+      name: body.name,
+      description: body.description,
+      imam: session.user.id, // Use the correct field name from your model
+      contact: {
+        phone: body.phone,
+        email: body.email,
+        website: body.website,
+        address: {
+          street: body.address,
+          city: body.city,
+          state: body.state,
+          zipCode: body.zipCode,
+          country: body.country || 'United States',
+          coordinates: body.location?.coordinates || null
+        }
+      },
+      capacity: body.capacity,
+      services: body.services || [],
+      facilities: body.facilityFeatures || [],
+      prayerTimes: body.prayerTimes || {},
       status: 'pending', // Default status
-      prayerTimes: body.prayerTimes || {}, // Handle prayer times if provided
-    });
+      verified: false,
+      stats: {
+        totalMembers: 0,
+        totalEvents: 0,
+        totalVolunteers: 0
+      }
+    };
+
+    const mosque = await Mosque.create(mosqueData);
+    console.log('Created mosque:', mosque);
 
     return NextResponse.json({ 
       success: true, 
