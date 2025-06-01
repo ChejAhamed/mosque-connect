@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/db';
-import Business from '@/models/Business';
 import Announcement from '@/models/Announcement';
+import Business from '@/models/Business';
 
 export async function GET(request, { params }) {
   try {
@@ -13,31 +13,25 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const isAdmin = ['admin', 'superadmin'].includes(session.user.role);
-    const isBusiness = session.user.role === 'business';
-
-    if (!isAdmin && !isBusiness) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     await connectDB();
 
-    let announcement;
+    let query = { _id: params.announcementId };
 
-    if (isAdmin) {
-      // Admin can view any announcement
-      announcement = await Announcement.findById(params.id).populate('businessId', 'name');
-    } else {
-      // Business can only view their own announcements
-      const business = await Business.findOne({ owner: session.user.id });
+    // Add role-based filtering
+    if (session.user.role === 'admin') {
+      query.isAdminAnnouncement = true;
+    } else if (session.user.role === 'business') {
+      const business = await Business.findOne({ email: session.user.email });
       if (!business) {
-        return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+        return NextResponse.json({ error: 'Business profile not found' }, { status: 404 });
       }
-      announcement = await Announcement.findOne({
-        _id: params.id,
-        businessId: business._id
-      }).populate('businessId', 'name');
+      query.businessId = business._id;
+    } else if (session.user.role === 'imam') {
+      query.businessId = { $exists: false };
+      query.isAdminAnnouncement = { $ne: true };
     }
+
+    const announcement = await Announcement.findOne(query).lean();
 
     if (!announcement) {
       return NextResponse.json({ error: 'Announcement not found' }, { status: 404 });
@@ -65,42 +59,47 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const isAdmin = ['admin', 'superadmin'].includes(session.user.role);
-    const isBusiness = session.user.role === 'business';
-
-    if (!isAdmin && !isBusiness) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     const data = await request.json();
-    const { title, content, type, isActive, expiresAt } = data;
-
     await connectDB();
 
-    let updateQuery = { _id: params.id };
-    
-    if (isBusiness) {
-      // Business can only update their own announcements
-      const business = await Business.findOne({ owner: session.user.id });
-      if (!business) {
-        return NextResponse.json({ error: 'Business not found' }, { status: 404 });
-      }
-      updateQuery.businessId = business._id;
+    if (!data.title || !data.content || !data.type) {
+      return NextResponse.json(
+        { error: 'Title, content, and type are required' },
+        { status: 400 }
+      );
     }
-    // Admin can update any announcement (no additional filter needed)
+
+    let query = { _id: params.announcementId };
+
+    if (session.user.role === 'admin') {
+      query.isAdminAnnouncement = true;
+    } else if (session.user.role === 'business') {
+      const business = await Business.findOne({ email: session.user.email });
+      if (!business) {
+        return NextResponse.json({ error: 'Business profile not found' }, { status: 404 });
+      }
+      query.businessId = business._id;
+    } else if (session.user.role === 'imam') {
+      query.businessId = { $exists: false };
+      query.isAdminAnnouncement = { $ne: true };
+    }
+
+    const updateData = {
+      title: data.title,
+      content: data.content,
+      type: data.type,
+      priority: data.priority || 'medium',
+      targetAudience: data.targetAudience || 'all',
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      startDate: data.startDate,
+      endDate: data.endDate,
+    };
 
     const announcement = await Announcement.findOneAndUpdate(
-      updateQuery,
-      {
-        title,
-        content,
-        type: type || 'general',
-        isActive: isActive !== undefined ? isActive : true,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-        updatedAt: new Date()
-      },
+      query,
+      updateData,
       { new: true, runValidators: true }
-    ).populate('businessId', 'name');
+    ).lean();
 
     if (!announcement) {
       return NextResponse.json({ error: 'Announcement not found' }, { status: 404 });
@@ -128,28 +127,24 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const isAdmin = ['admin', 'superadmin'].includes(session.user.role);
-    const isBusiness = session.user.role === 'business';
-
-    if (!isAdmin && !isBusiness) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     await connectDB();
 
-    let deleteQuery = { _id: params.id };
-    
-    if (isBusiness) {
-      // Business can only delete their own announcements
-      const business = await Business.findOne({ owner: session.user.id });
-      if (!business) {
-        return NextResponse.json({ error: 'Business not found' }, { status: 404 });
-      }
-      deleteQuery.businessId = business._id;
-    }
-    // Admin can delete any announcement (no additional filter needed)
+    let query = { _id: params.announcementId };
 
-    const announcement = await Announcement.findOneAndDelete(deleteQuery);
+    if (session.user.role === 'admin') {
+      query.isAdminAnnouncement = true;
+    } else if (session.user.role === 'business') {
+      const business = await Business.findOne({ email: session.user.email });
+      if (!business) {
+        return NextResponse.json({ error: 'Business profile not found' }, { status: 404 });
+      }
+      query.businessId = business._id;
+    } else if (session.user.role === 'imam') {
+      query.businessId = { $exists: false };
+      query.isAdminAnnouncement = { $ne: true };
+    }
+
+    const announcement = await Announcement.findOneAndDelete(query);
 
     if (!announcement) {
       return NextResponse.json({ error: 'Announcement not found' }, { status: 404 });

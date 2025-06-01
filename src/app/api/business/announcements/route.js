@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectDB } from '@/lib/db';
+import Announcement from '@/models/Announcement';
+import Business from '@/models/Business';
+import User from '@/models/User';
 
 export async function GET(request) {
   try {
@@ -11,25 +14,53 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!['admin', 'superadmin'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     await connectDB();
 
     const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type');
+    const status = searchParams.get('status');
+    const limit = parseInt(searchParams.get('limit')) || 20;
     const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 10;
 
-    // Use raw MongoDB operations to bypass Mongoose validation
-    const announcements = await mongoose.connection.db.collection('announcements')
-      .find({})
+    let query = {};
+
+    // If user is admin, they can see admin announcements
+    if (session.user.role === 'admin') {
+      query.isAdminAnnouncement = true;
+    } 
+    // If user is business, they can see their business announcements
+    else if (session.user.role === 'business') {
+      const business = await Business.findOne({ email: session.user.email });
+      if (!business) {
+        return NextResponse.json({ error: 'Business profile not found' }, { status: 404 });
+      }
+      query.businessId = business._id;
+      query.isAdminAnnouncement = { $ne: true };
+    }
+    // If user is imam, they can see mosque announcements
+    else if (session.user.role === 'imam') {
+      query.isAdminAnnouncement = { $ne: true };
+      query.businessId = { $exists: false };
+    }
+    else {
+      return NextResponse.json({ error: 'Unauthorized role' }, { status: 403 });
+    }
+
+    if (type && type !== 'all') {
+      query.type = type;
+    }
+
+    if (status) {
+      query.isActive = status === 'active';
+    }
+
+    const total = await Announcement.countDocuments(query);
+
+    const announcements = await Announcement.find(query)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .toArray();
-
-    const total = await mongoose.connection.db.collection('announcements').countDocuments({});
+      .lean();
 
     return NextResponse.json({
       announcements,
@@ -58,55 +89,79 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!['admin', 'superadmin'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     const data = await request.json();
-    const { title, content, type, isActive, expiresAt } = data;
+    console.log('Creating announcement with data:', data);
+    console.log('Session user:', session.user);
 
-    if (!title || !content) {
+    await connectDB();
+
+    // Validate required fields
+    if (!data.title || !data.content || !data.type) {
       return NextResponse.json(
-        { error: 'Title and content are required' },
+        { error: 'Title, content, and type are required' },
         { status: 400 }
       );
     }
 
-    await connectDB();
+    // Get the user's ObjectId
+    const user = await User.findOne({ email: session.user.email });
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
 
-    // Use raw MongoDB operations to bypass Mongoose validation
-    const announcement = {
-      title,
-      content,
-      type: type || 'platform',
-      businessId: null, // Admin announcements don't have businessId
-      isActive: isActive !== undefined ? isActive : true,
-      expiresAt: expiresAt ? new Date(expiresAt) : null,
-      isPinned: false,
-      views: 0,
-      likes: 0,
-      tags: [],
-      attachments: [],
-      targetAudience: 'all',
-      createdAt: new Date(),
-      updatedAt: new Date()
+    let announcementData = {
+      title: data.title,
+      content: data.content,
+      type: data.type,
+      priority: data.priority || 'medium',
+      targetAudience: data.targetAudience || 'all',
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      startDate: data.startDate || new Date(),
+      endDate: data.endDate || null,
+      createdBy: user._id,
     };
 
-    const result = await mongoose.connection.db.collection('announcements').insertOne(announcement);
-    
-    // Get the created announcement
-    const createdAnnouncement = await mongoose.connection.db.collection('announcements')
-      .findOne({ _id: result.insertedId });
+    // Handle different user roles
+    if (session.user.role === 'admin') {
+      announcementData.isAdminAnnouncement = true;
+    } 
+    else if (session.user.role === 'business') {
+      const business = await Business.findOne({ email: session.user.email });
+      if (!business) {
+        return NextResponse.json(
+          { error: 'Business profile not found. Please complete your business registration.' },
+          { status: 404 }
+        );
+      }
+      announcementData.businessId = business._id;
+      announcementData.isAdminAnnouncement = false;
+    }
+    else if (session.user.role === 'imam') {
+      announcementData.isAdminAnnouncement = false;
+    }
+    else {
+      return NextResponse.json({ error: 'Unauthorized role' }, { status: 403 });
+    }
+
+    console.log('Final announcement data:', announcementData);
+
+    const announcement = await Announcement.create(announcementData);
+    const createdAnnouncement = await Announcement.findById(announcement._id).lean();
+
+    console.log('Created announcement:', createdAnnouncement);
 
     return NextResponse.json({
       announcement: createdAnnouncement,
-      message: 'Admin announcement created successfully'
+      message: 'Announcement created successfully'
     }, { status: 201 });
 
   } catch (error) {
     console.error('Error creating announcement:', error);
     return NextResponse.json(
-      { error: 'Failed to create announcement' },
+      { error: 'Failed to create announcement', details: error.message },
       { status: 500 }
     );
   }

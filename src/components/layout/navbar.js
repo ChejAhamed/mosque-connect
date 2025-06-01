@@ -93,9 +93,12 @@ export function Navbar() {
 
     if (role === "imam") {
       actions.push({ href: "/dashboard/imam", label: "Imam Dashboard", icon: Settings });
+      
     }
 
-    // if (role === "admin") {
+    if (role === "admin") {
+      actions.push({ href: "/admin/announcements", label: "Manage Announcements", icon: Settings });
+      actions.push({ href: "/announcements", label: "Announcements", icon: Settings });
     //   actions.push({ href: "/admin/dashboard", label: "🔧 Admin Dashboard", icon: Settings });
     //   actions.push({ href: "/admin/mosques", label: "Manage Mosques", icon: Settings });
     //   actions.push({ href: "/admin/businesses", label: "Manage Businesses", icon: Settings });
@@ -103,9 +106,9 @@ export function Navbar() {
     //   actions.push({ href: "/admin/users", label: "Manage Users", icon: Settings });
     //   actions.push({ href: "/admin/analytics", label: "Analytics & Reports", icon: Settings });
     //   actions.push({ href: "/dashboard/imam", label: "Imam Dashboard", icon: Settings });
-    // }
+    }
 
-    if (role === "business" || role === "admin") {
+    if (role === "business") {
       actions.push({ href: "/dashboard/business/announcements", label: "Manage Announcements", icon: Settings });
     }
 

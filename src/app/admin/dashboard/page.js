@@ -343,6 +343,9 @@ export default function AdminDashboard() {
           <Button variant="outline" onClick={() => router.push('/admin/analytics')}>
             Analytics
           </Button>
+          <Button variant="outline" onClick={() => router.push('/announcements')}>
+            Announcements
+          </Button>
         </div>
       </div>
 
